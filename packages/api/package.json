@@ -8,12 +8,7 @@
     "build": "tsc",
     "clean": "rm -rf dist"
   },
-  "keywords": [
-    "azure",
-    "speech-service",
-    "diarization",
-    "api"
-  ],
+  "keywords": ["azure", "speech-service", "diarization", "api"],
   "license": "MIT",
   "dependencies": {
     "@azure-speech-diarization/core": "*"

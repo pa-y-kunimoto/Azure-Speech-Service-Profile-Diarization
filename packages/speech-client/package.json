@@ -1,7 +1,7 @@
 {
-  "name": "@speaker-diarization/core",
+  "name": "@speaker-diarization/speech-client",
   "version": "0.1.0",
-  "description": "Core types and utilities for Speaker Diarization",
+  "description": "Azure Speech Service client wrapper for Speaker Diarization",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -18,11 +18,16 @@
     "test:coverage": "vitest run --coverage",
     "clean": "rm -rf dist"
   },
-  "keywords": ["azure", "speech-service", "diarization", "core"],
-  "license": "MIT",
+  "dependencies": {
+    "@speaker-diarization/core": "*",
+    "microsoft-cognitiveservices-speech-sdk": "^1.41.0"
+  },
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^2.1.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "keywords": ["azure", "speech-service", "diarization", "sdk"],
+  "license": "MIT"
 }

@@ -18,17 +18,17 @@
 
 **Purpose**: Monorepo 構成の初期化と開発環境セットアップ
 
-- [ ] T001 VOLTA バージョン設定ファイル volta.json を作成（Node.js 22.x LTS 指定）
-- [ ] T002 ルート package.json に npm workspaces 設定（apps/web, apps/api, packages/core, packages/speech-client）
-- [ ] T003 [P] Biome.js 設定ファイル biome.json を作成
-- [ ] T004 [P] 共通 TypeScript 設定 tsconfig.base.json を更新（strict モード）
-- [ ] T005 [P] 環境変数テンプレート .env.example を作成（SPEECH_KEY, SPEECH_ENDPOINT）
-- [ ] T006 [P] .gitignore に .env を追加
-- [ ] T007 Nuxt 4 フロントエンド apps/web を初期化（package.json, nuxt.config.ts）
-- [ ] T008 TailwindCSS 設定 apps/web/tailwind.config.ts を作成
-- [ ] T009 ExpressJS バックエンド apps/api を初期化（package.json, tsconfig.json）
-- [ ] T010 [P] packages/core を初期化（package.json, tsconfig.json）
-- [ ] T011 [P] packages/speech-client を初期化（package.json, tsconfig.json, microsoft-cognitiveservices-speech-sdk 依存追加）
+- [X] T001 VOLTA バージョン設定ファイル volta.json を作成（Node.js 22.x LTS 指定）
+- [X] T002 ルート package.json に npm workspaces 設定（apps/web, apps/api, packages/core, packages/speech-client）
+- [X] T003 [P] Biome.js 設定ファイル biome.json を作成
+- [X] T004 [P] 共通 TypeScript 設定 tsconfig.base.json を更新（strict モード）
+- [X] T005 [P] 環境変数テンプレート .env.example を作成（SPEECH_KEY, SPEECH_ENDPOINT）
+- [X] T006 [P] .gitignore に .env を追加
+- [X] T007 Nuxt 4 フロントエンド apps/web を初期化（package.json, nuxt.config.ts）
+- [X] T008 TailwindCSS 設定 apps/web/tailwind.config.ts を作成
+- [X] T009 ExpressJS バックエンド apps/api を初期化（package.json, tsconfig.json）
+- [X] T010 [P] packages/core を初期化（package.json, tsconfig.json）
+- [X] T011 [P] packages/speech-client を初期化（package.json, tsconfig.json, microsoft-cognitiveservices-speech-sdk 依存追加）
 
 ---
 
@@ -40,30 +40,30 @@
 
 ### Core 型定義
 
-- [ ] T012 [P] VoiceProfile 型定義を作成 packages/core/src/types/voiceProfile.ts
-- [ ] T013 [P] DiarizationSession 型定義を作成 packages/core/src/types/diarizationSession.ts
-- [ ] T014 [P] SpeakerMapping 型定義を作成 packages/core/src/types/speakerMapping.ts
-- [ ] T015 [P] Utterance 型定義を作成 packages/core/src/types/utterance.ts
-- [ ] T016 型定義のエクスポートを整理 packages/core/src/index.ts
+- [X] T012 [P] VoiceProfile 型定義を作成 packages/core/src/types/voiceProfile.ts
+- [X] T013 [P] DiarizationSession 型定義を作成 packages/core/src/types/diarizationSession.ts
+- [X] T014 [P] SpeakerMapping 型定義を作成 packages/core/src/types/speakerMapping.ts
+- [X] T015 [P] Utterance 型定義を作成 packages/core/src/types/utterance.ts
+- [X] T016 型定義のエクスポートを整理 packages/core/src/index.ts
 
 ### バックエンド基盤
 
-- [ ] T017 ExpressJS エントリーポイント apps/api/src/index.ts を作成（CORS, JSON パーサー設定）
-- [ ] T018 [P] エラーハンドラーミドルウェア apps/api/src/middleware/errorHandler.ts を作成
-- [ ] T019 [P] ヘルスチェックエンドポイント apps/api/src/routes/health.ts を作成（/api/health）
+- [X] T017 ExpressJS エントリーポイント apps/api/src/index.ts を作成（CORS, JSON パーサー設定）
+- [X] T018 [P] エラーハンドラーミドルウェア apps/api/src/middleware/errorHandler.ts を作成
+- [X] T019 [P] ヘルスチェックエンドポイント apps/api/src/routes/health.ts を作成（/api/health）
 
 ### フロントエンド基盤
 
-- [ ] T020 apps/web/app.vue レイアウト作成（TailwindCSS ベース）
-- [ ] T021 [P] ページルーティング設定 apps/web/pages/index.vue（プロフィール管理）
-- [ ] T022 [P] ページルーティング設定 apps/web/pages/session.vue（話者分離セッション）
+- [X] T020 apps/web/app.vue レイアウト作成（TailwindCSS ベース）
+- [X] T021 [P] ページルーティング設定 apps/web/pages/index.vue（プロフィール管理）
+- [X] T022 [P] ページルーティング設定 apps/web/pages/session.vue（話者分離セッション）
 
 ### テスト環境
 
-- [ ] T023 [P] Vitest 設定 apps/api/vitest.config.ts
-- [ ] T024 [P] Vitest 設定 apps/web/vitest.config.ts
-- [ ] T025 [P] Vitest 設定 packages/core/vitest.config.ts
-- [ ] T026 [P] Playwright 設定 apps/web/playwright.config.ts
+- [X] T023 [P] Vitest 設定 apps/api/vitest.config.ts
+- [X] T024 [P] Vitest 設定 apps/web/vitest.config.ts
+- [X] T025 [P] Vitest 設定 packages/core/vitest.config.ts
+- [X] T026 [P] Playwright 設定 apps/web/playwright.config.ts
 
 **Checkpoint**: 基盤完了 - 全 apps/packages がビルド可能、型定義が利用可能
 
@@ -79,19 +79,19 @@
 
 > **NOTE: TDD - これらのテストを先に書き、FAIL を確認してから実装**
 
-- [ ] T027 [P] [US1] VoiceProfile バリデーション単体テスト packages/core/tests/unit/voiceProfile.test.ts
-- [ ] T028 [P] [US1] useVoiceProfile composable 単体テスト apps/web/tests/unit/useVoiceProfile.test.ts
+- [X] T027 [P] [US1] VoiceProfile バリデーション単体テスト packages/core/tests/unit/voiceProfile.test.ts
+- [X] T028 [P] [US1] useVoiceProfile composable 単体テスト apps/web/tests/unit/useVoiceProfile.test.ts
 - [ ] T029 [P] [US1] VoiceProfileUploader コンポーネントテスト apps/web/tests/unit/VoiceProfileUploader.test.ts
 - [ ] T030 [P] [US1] ProfileList コンポーネントテスト apps/web/tests/unit/ProfileList.test.ts
 
 ### Implementation for User Story 1
 
-- [ ] T031 [US1] VoiceProfile バリデーションユーティリティ packages/core/src/utils/validation.ts（名前1-50文字、音声5秒以上）
-- [ ] T032 [US1] useVoiceProfile composable apps/web/composables/useVoiceProfile.ts（sessionStorage CRUD、容量チェック・警告表示ロジック含む）
-- [ ] T033 [US1] 音声ファイル → Base64 変換ユーティリティ apps/web/utils/audioConverter.ts（MP3→WAV 変換含む、WAV 16kHz/16-bit/Mono 正規化）
-- [ ] T034 [US1] VoiceProfileUploader コンポーネント apps/web/components/VoiceProfileUploader.vue（ファイル選択、名前入力、バリデーション表示）
-- [ ] T035 [US1] ProfileList コンポーネント apps/web/components/ProfileList.vue（一覧表示、削除ボタン、再生プレビュー）
-- [ ] T036 [US1] index.vue にコンポーネントを統合 apps/web/pages/index.vue
+- [X] T031 [US1] VoiceProfile バリデーションユーティリティ packages/core/src/utils/validation.ts（名前1-50文字、音声5秒以上）
+- [X] T032 [US1] useVoiceProfile composable apps/web/composables/useVoiceProfile.ts（sessionStorage CRUD、容量チェック・警告表示ロジック含む）
+- [X] T033 [US1] 音声ファイル → Base64 変換ユーティリティ apps/web/utils/audioConverter.ts（MP3→WAV 変換含む、WAV 16kHz/16-bit/Mono 正規化）
+- [X] T034 [US1] VoiceProfileUploader コンポーネント apps/web/components/VoiceProfileUploader.vue（ファイル選択、名前入力、バリデーション表示）
+- [X] T035 [US1] ProfileList コンポーネント apps/web/components/ProfileList.vue（一覧表示、削除ボタン、再生プレビュー）
+- [X] T036 [US1] index.vue にコンポーネントを統合 apps/web/pages/index.vue
 
 **Checkpoint**: US1 完了 - 音声ファイルをアップロードし、セッションストレージに保存・一覧表示・削除が可能
 

@@ -1,29 +1,37 @@
 {
   "name": "azure-speech-service-profile-diarization",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Azure Speech Service Profile-Based Speaker Diarization",
-  "workspaces": [
-    "packages/*"
-  ],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "build": "tsc --build",
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:api": "npm run dev --workspace=@speaker-diarization/api",
+    "dev:web": "npm run dev --workspace=@speaker-diarization/web",
     "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
-    "clean": "tsc --build --clean && npm run clean --workspaces --if-present"
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check . && tsc --noEmit",
+    "fix": "biome check --write . && biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "clean": "npm run clean --workspaces --if-present"
   },
   "devDependencies": {
-    "typescript": "^5.3.0"
+    "@biomejs/biome": "^1.9.0",
+    "typescript": "^5.7.0"
   },
-  "keywords": [
-    "azure",
-    "speech-service",
-    "diarization",
-    "speaker-recognition"
-  ],
+  "keywords": ["azure", "speech-service", "diarization", "speaker-recognition"],
   "author": "",
   "license": "MIT",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
+  },
+  "volta": {
+    "node": "22.11.0",
+    "npm": "10.9.0"
   }
 }
