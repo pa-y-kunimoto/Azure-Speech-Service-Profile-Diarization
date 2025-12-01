@@ -1,0 +1,21 @@
+{
+  "name": "@azure-speech-diarization/core",
+  "version": "0.0.1",
+  "description": "Core library for Azure Speech Service Profile-Based Speaker Diarization",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "azure",
+    "speech-service",
+    "diarization",
+    "core"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
