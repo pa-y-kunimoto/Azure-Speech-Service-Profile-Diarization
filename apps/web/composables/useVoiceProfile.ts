@@ -202,6 +202,15 @@ export function useVoiceProfile() {
 		return false;
 	}
 
+	/**
+	 * Reset internal state (for testing purposes only)
+	 * @internal
+	 */
+	function _resetForTesting(): void {
+		profiles.value = [];
+		isLoaded.value = false;
+	}
+
 	return {
 		// State
 		profiles: computed(() => profiles.value),
@@ -215,5 +224,8 @@ export function useVoiceProfile() {
 		clearAllProfiles,
 		updateProfile,
 		reloadProfiles: loadProfiles,
+
+		// Testing only
+		_resetForTesting,
 	};
 }

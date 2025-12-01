@@ -1,10 +1,12 @@
 import path from 'node:path';
-import { defineVitestConfig } from '@nuxt/test-utils/config';
+import vue from '@vitejs/plugin-vue';
+import { defineConfig } from 'vitest/config';
 
-export default defineVitestConfig({
+export default defineConfig({
+	plugins: [vue()],
 	test: {
 		globals: true,
-		environment: 'nuxt',
+		environment: 'happy-dom',
 		include: ['tests/**/*.test.ts'],
 		exclude: ['node_modules', 'dist', '.nuxt'],
 		coverage: {
@@ -13,11 +15,15 @@ export default defineVitestConfig({
 			include: ['components/**/*.vue', 'composables/**/*.ts', 'utils/**/*.ts'],
 		},
 		testTimeout: 10000,
+		isolate: true,
+		pool: 'forks',
 	},
 	resolve: {
 		alias: {
 			'@': path.resolve(__dirname, '.'),
 			'~': path.resolve(__dirname, '.'),
+			'#app': path.resolve(__dirname, '.nuxt/imports.d.ts'),
+			'#imports': path.resolve(__dirname, '.nuxt/imports.d.ts'),
 		},
 	},
 });

@@ -35,6 +35,10 @@ Object.defineProperty(globalThis, 'sessionStorage', {
 
 describe('useVoiceProfile', () => {
 	beforeEach(() => {
+		// Reset composable state before each test
+		const { _resetForTesting } = useVoiceProfile();
+		_resetForTesting();
+
 		mockSessionStorage.clear();
 		vi.clearAllMocks();
 	});

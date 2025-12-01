@@ -81,8 +81,8 @@
 
 - [X] T027 [P] [US1] VoiceProfile バリデーション単体テスト packages/core/tests/unit/voiceProfile.test.ts
 - [X] T028 [P] [US1] useVoiceProfile composable 単体テスト apps/web/tests/unit/useVoiceProfile.test.ts
-- [ ] T029 [P] [US1] VoiceProfileUploader コンポーネントテスト apps/web/tests/unit/VoiceProfileUploader.test.ts
-- [ ] T030 [P] [US1] ProfileList コンポーネントテスト apps/web/tests/unit/ProfileList.test.ts
+- [X] T029 [P] [US1] VoiceProfileUploader コンポーネントテスト apps/web/tests/unit/VoiceProfileUploader.test.ts
+- [X] T030 [P] [US1] ProfileList コンポーネントテスト apps/web/tests/unit/ProfileList.test.ts
 
 ### Implementation for User Story 1
 
