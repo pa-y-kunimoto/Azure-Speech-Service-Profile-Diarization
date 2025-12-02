@@ -122,21 +122,50 @@
     </div>
 
     <!-- Session Results Section -->
-    <div class="bg-white rounded-lg shadow p-6">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">
-        セッション結果
-      </h3>
-      <!-- SpeakerTimeline will be added here -->
-      <p class="text-gray-500 text-center py-8">
-        SpeakerTimeline コンポーネント（Phase 7 で実装）
-      </p>
+    <div v-if="showResults" class="bg-white rounded-lg shadow p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold text-gray-900">
+          セッション結果
+        </h3>
+        <button
+          v-if="!showResults || recognition.utterances.value.length > 0"
+          type="button"
+          class="text-sm text-blue-600 hover:text-blue-800"
+          @click="toggleResults"
+        >
+          {{ showResults ? '結果を隠す' : '結果を表示' }}
+        </button>
+      </div>
+      <SpeakerTimeline
+        :utterances="recognition.utterances.value"
+        :speaker-mappings="speakerMappings"
+        :session-duration-seconds="sessionDurationSeconds"
+        :selected-speaker="selectedSpeaker"
+        @speaker-select="handleTimelineSpeakerSelect"
+        @utterance-click="handleUtteranceClick"
+      />
+    </div>
+
+    <!-- Show Results Button (when collapsed) -->
+    <div
+      v-else-if="recognition.utterances.value.length > 0"
+      class="bg-white rounded-lg shadow p-4 text-center"
+    >
+      <button
+        type="button"
+        class="text-blue-600 hover:text-blue-800 font-medium"
+        @click="toggleResults"
+      >
+        セッション結果を表示 ({{ recognition.utterances.value.length }} 発話)
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue';
+import { ref, computed, onUnmounted } from 'vue';
 import { useRealtimeRecognition } from '~/composables/useRealtimeRecognition';
+import type { SpeakerMapping } from '@speaker-diarization/core';
 
 // Session state
 const sessionId = ref<string | null>(null);
@@ -173,6 +202,9 @@ const statusColors: Record<string, string> = {
  */
 function handleSessionStarted(id: string) {
   sessionId.value = id;
+  sessionStartTime.value = Date.now();
+  showResults.value = false;
+  selectedSpeaker.value = null;
   
   // Reinitialize recognition with correct session ID
   recognition = useRealtimeRecognition({
@@ -190,6 +222,10 @@ function handleSessionStarted(id: string) {
 function handleSessionEnded() {
   recognition.disconnect();
   sessionId.value = null;
+  // Show results after session ends if there are utterances
+  if (recognition.utterances.value.length > 0) {
+    showResults.value = true;
+  }
 }
 
 /**
@@ -220,6 +256,41 @@ async function stopRecognition() {
 function handleSpeakerClick(speakerId: string, speakerName: string) {
   console.log('Speaker clicked:', speakerId, speakerName);
   // Could open a dialog to rename/map the speaker
+}
+
+// Session results state
+const showResults = ref(false);
+const selectedSpeaker = ref<string | null>(null);
+const sessionStartTime = ref<number | null>(null);
+const speakerMappings = ref<SpeakerMapping[]>([]);
+
+// Calculate session duration
+const sessionDurationSeconds = computed(() => {
+  if (!sessionStartTime.value) return 0;
+  const now = Date.now();
+  return Math.floor((now - sessionStartTime.value) / 1000);
+});
+
+/**
+ * Toggle results section visibility
+ */
+function toggleResults() {
+  showResults.value = !showResults.value;
+}
+
+/**
+ * Handle speaker selection from timeline
+ */
+function handleTimelineSpeakerSelect(speakerId: string) {
+  selectedSpeaker.value = speakerId === selectedSpeaker.value ? null : speakerId;
+}
+
+/**
+ * Handle utterance click from timeline
+ */
+function handleUtteranceClick(utterance: { id: string; text: string; speakerName: string }) {
+  console.log('Utterance clicked:', utterance);
+  // Could scroll to or highlight the utterance
 }
 
 // Cleanup on unmount

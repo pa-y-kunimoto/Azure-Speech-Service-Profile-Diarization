@@ -7,6 +7,7 @@
 
 import { EventEmitter } from 'node:events';
 import { v4 as uuidv4 } from 'uuid';
+import type { DiarizationClient } from '@speaker-diarization/speech-client';
 
 /**
  * Utterance data structure

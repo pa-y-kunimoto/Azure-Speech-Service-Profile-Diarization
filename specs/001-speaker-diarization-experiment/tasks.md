@@ -197,12 +197,12 @@
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T068 [P] [US5] SpeakerTimeline コンポーネントテスト apps/web/tests/unit/SpeakerTimeline.test.ts
+- [X] T068 [P] [US5] SpeakerTimeline コンポーネントテスト apps/web/tests/unit/SpeakerTimeline.test.ts
 
 ### Implementation for User Story 5
 
-- [ ] T069 [US5] SpeakerTimeline コンポーネント apps/web/components/SpeakerTimeline.vue（タイムライン表示、話者フィルタ）
-- [ ] T070 [US5] session.vue に結果表示セクションを追加 apps/web/pages/session.vue（セッション終了時に SpeakerTimeline 表示）
+- [X] T069 [US5] SpeakerTimeline コンポーネント apps/web/components/SpeakerTimeline.vue（タイムライン表示、話者フィルタ）
+- [X] T070 [US5] session.vue に結果表示セクションを追加 apps/web/pages/session.vue（セッション終了時に SpeakerTimeline 表示）
 
 **Checkpoint**: US5 完了 - 全発話がタイムライン形式で確認可能
 
@@ -212,15 +212,15 @@
 
 **Purpose**: 品質向上、ドキュメント、最終検証
 
-- [ ] T071 [P] README.md 更新（セットアップ手順、使用方法）
-- [ ] T072 [P] apps/api/README.md 作成（API ドキュメント）
-- [ ] T073 [P] apps/web/README.md 作成（フロントエンドドキュメント）
-- [ ] T074 [P] packages/core/README.md 作成
-- [ ] T075 [P] packages/speech-client/README.md 作成
-- [ ] T076 エラーハンドリングの統一（Toast 通知、リトライロジック、WebSocket 自動再接続ロジック）
-- [ ] T077 ローディング状態の UI 改善
-- [ ] T078 quickstart.md に従った E2E 動作確認
-- [ ] T079 [P] Playwright E2E テスト apps/web/tests/e2e/fullFlow.test.ts（プロフィール作成 → セッション → 認識 → 結果確認）
+- [X] T071 [P] README.md 更新（セットアップ手順、使用方法）
+- [X] T072 [P] apps/api/README.md 作成（API ドキュメント）
+- [X] T073 [P] apps/web/README.md 作成（フロントエンドドキュメント）
+- [X] T074 [P] packages/core/README.md 作成
+- [X] T075 [P] packages/speech-client/README.md 作成
+- [X] T076 エラーハンドリングの統一（Toast 通知、リトライロジック、WebSocket 自動再接続ロジック）
+- [X] T077 ローディング状態の UI 改善
+- [X] T078 quickstart.md に従った E2E 動作確認
+- [X] T079 [P] Playwright E2E テスト apps/web/tests/e2e/fullFlow.test.ts（プロフィール作成 → セッション → 認識 → 結果確認）
 
 ---
 

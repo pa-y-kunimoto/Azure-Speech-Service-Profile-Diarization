@@ -52,11 +52,24 @@
         </p>
       </div>
     </footer>
+
+    <!-- Toast Notifications -->
+    <ToastNotification
+      :toasts="toasts"
+      position="top-right"
+      @dismiss="handleToastDismiss"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-// App-level setup
+import { useToast } from '~/composables/useToast';
+
+const { toasts, dismiss } = useToast();
+
+function handleToastDismiss(id: string) {
+  dismiss(id);
+}
 </script>
 
 <style>

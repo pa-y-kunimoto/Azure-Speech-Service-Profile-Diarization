@@ -61,7 +61,7 @@ setupWebSocketServer(httpServer, {
 		return new DiarizationClient({
 			subscriptionKey: speechKey,
 			region: speechRegion,
-			endpoint: process.env.SPEECH_ENDPOINT,
+			endpoint: process.env.SPEECH_ENDPOINT || '',
 			language: 'ja-JP',
 		});
 	},

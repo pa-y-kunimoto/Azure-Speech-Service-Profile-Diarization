@@ -51,10 +51,14 @@ export interface RecognitionError {
 export interface UseRealtimeRecognitionOptions {
 	sessionId: string;
 	apiBaseUrl?: string;
+	maxReconnectAttempts?: number;
+	reconnectDelay?: number;
 	onUtterance?: (utterance: Utterance) => void;
 	onInterim?: (utterance: Utterance) => void;
 	onSpeakerDetected?: (speakerId: string) => void;
 	onError?: (error: RecognitionError) => void;
+	onReconnecting?: (attempt: number, maxAttempts: number) => void;
+	onReconnected?: () => void;
 }
 
 /**
@@ -64,10 +68,14 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 	const {
 		sessionId,
 		apiBaseUrl = 'ws://localhost:3001',
+		maxReconnectAttempts = 3,
+		reconnectDelay = 1000,
 		onUtterance,
 		onInterim,
 		onSpeakerDetected,
 		onError,
+		onReconnecting,
+		onReconnected,
 	} = options;
 
 	// State
@@ -84,6 +92,9 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 	let mediaStream: MediaStream | null = null;
 	let audioContext: AudioContext | null = null;
 	let scriptProcessor: ScriptProcessorNode | null = null;
+	let reconnectAttempts = 0;
+	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	let shouldReconnect = false;
 
 	// Computed
 	const isConnected = computed(() => status.value === 'connected' || status.value === 'active');
@@ -100,6 +111,7 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 
 		status.value = 'connecting';
 		error.value = null;
+		shouldReconnect = true;
 
 		return new Promise((resolve, reject) => {
 			const wsUrl = `${apiBaseUrl}/ws/session/${sessionId}`;
@@ -108,6 +120,10 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 			socket.onopen = () => {
 				console.log('WebSocket connected');
 				status.value = 'connected';
+				reconnectAttempts = 0; // Reset on successful connection
+				if (onReconnected && reconnectAttempts > 0) {
+					onReconnected();
+				}
 				resolve();
 			};
 
@@ -130,18 +146,61 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 
 			socket.onclose = () => {
 				console.log('WebSocket closed');
-				if (status.value !== 'error') {
-					status.value = 'ended';
+				if (status.value !== 'error' && status.value !== 'ended') {
+					// Attempt reconnection if not intentionally closed
+					if (shouldReconnect && reconnectAttempts < maxReconnectAttempts) {
+						attemptReconnect();
+					} else {
+						status.value = 'ended';
+					}
 				}
-				cleanup();
+				cleanupAudio(); // Clean up audio resources but not socket
 			};
 		});
+	}
+
+	/**
+	 * Attempt to reconnect to WebSocket server
+	 */
+	function attemptReconnect(): void {
+		reconnectAttempts++;
+		const delay = reconnectDelay * 2 ** (reconnectAttempts - 1); // Exponential backoff
+
+		console.log(`Attempting reconnection (${reconnectAttempts}/${maxReconnectAttempts}) in ${delay}ms`);
+		onReconnecting?.(reconnectAttempts, maxReconnectAttempts);
+
+		reconnectTimer = setTimeout(async () => {
+			try {
+				await connect();
+				// If we were active before disconnect, resume
+				if (status.value === 'connected' && mediaStream) {
+					await start();
+				}
+			} catch (err) {
+				console.error('Reconnection failed:', err);
+				if (reconnectAttempts >= maxReconnectAttempts) {
+					const reconnectError: RecognitionError = {
+						code: 'MAX_RECONNECT_ATTEMPTS',
+						message: `Failed to reconnect after ${maxReconnectAttempts} attempts`,
+						recoverable: false,
+					};
+					error.value = reconnectError;
+					status.value = 'error';
+					onError?.(reconnectError);
+				}
+			}
+		}, delay);
 	}
 
 	/**
 	 * Disconnect from WebSocket server
 	 */
 	function disconnect(): void {
+		shouldReconnect = false;
+		if (reconnectTimer) {
+			clearTimeout(reconnectTimer);
+			reconnectTimer = null;
+		}
 		if (socket) {
 			socket.close();
 			socket = null;
@@ -398,9 +457,9 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 	}
 
 	/**
-	 * Cleanup resources
+	 * Cleanup audio resources only
 	 */
-	function cleanup(): void {
+	function cleanupAudio(): void {
 		if (scriptProcessor) {
 			scriptProcessor.disconnect();
 			scriptProcessor = null;
@@ -416,6 +475,17 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
                 track.stop();
             }
 			mediaStream = null;
+		}
+	}
+
+	/**
+	 * Cleanup all resources
+	 */
+	function cleanup(): void {
+		cleanupAudio();
+		if (reconnectTimer) {
+			clearTimeout(reconnectTimer);
+			reconnectTimer = null;
 		}
 	}
 

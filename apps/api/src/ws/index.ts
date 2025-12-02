@@ -8,7 +8,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'node:http';
 import { WebSocketHandler } from './handler.js';
-import { RealtimeService } from '../services/realtimeService.js';
+import { RealtimeService, type Utterance } from '../services/realtimeService.js';
 import type { DiarizationClient } from '@speaker-diarization/speech-client';
 
 // Session store - maps sessionId to their services
@@ -53,7 +53,7 @@ export function setupWebSocketServer(server: Server, config: WebSocketServerConf
 		if (!clients.has(sessionId)) {
 			clients.set(sessionId, new Set());
 		}
-		clients.get(sessionId)!.add(ws);
+		clients.get(sessionId)?.add(ws);
 
 		// Create or get session handler
 		let sessionData = sessions.get(sessionId);
@@ -142,7 +142,7 @@ export function setupWebSocketServer(server: Server, config: WebSocketServerConf
 		ws.on('message', (data) => {
 			try {
 				const message = data.toString();
-				sessionData!.handler.handleMessage(message);
+				sessionData.handler.handleMessage(message);
 			} catch (error) {
 				console.error('Error handling WebSocket message:', error);
 				ws.send(JSON.stringify({

@@ -8,6 +8,7 @@ import type {
 	SpeakerMapping,
 	Utterance,
 } from '@speaker-diarization/core';
+import type { DiarizationClient } from '@speaker-diarization/speech-client';
 
 /**
  * Mock speaker IDs that simulate Azure's response
@@ -161,8 +162,8 @@ export function logMockModeStatus(): void {
  * Mock DiarizationClient for development without Azure credentials
  * Implements the same interface as the real DiarizationClient
  */
-export function createMockDiarizationClient(_sessionId: string): MockDiarizationClient {
-	return new MockDiarizationClient();
+export function createMockDiarizationClient(_sessionId: string): DiarizationClient {
+	return new MockDiarizationClient() as unknown as DiarizationClient;
 }
 
 type EventCallback = (...args: unknown[]) => void;
@@ -300,7 +301,7 @@ class MockDiarizationClient {
 		if (!this.eventListeners.has(event)) {
 			this.eventListeners.set(event, []);
 		}
-		this.eventListeners.get(event)!.push(callback);
+		this.eventListeners.get(event)?.push(callback);
 	}
 
 	off(event: string, callback: EventCallback): void {
