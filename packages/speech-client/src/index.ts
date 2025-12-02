@@ -1,3 +1,11 @@
 // Azure Speech Service client exports
-// Implementation will be added in Phase 5 (US3)
-export {};
+export { DiarizationClient } from './diarizationClient.js';
+export type {
+	DiarizationClientConfig,
+	AudioFormat,
+	EnrollmentResult,
+	LocalVoiceProfile,
+} from './diarizationClient.js';
+
+export { AudioProcessor } from './audioProcessor.js';
+export type { AudioProcessorConfig, AudioFormat as ProcessorAudioFormat } from './audioProcessor.js';

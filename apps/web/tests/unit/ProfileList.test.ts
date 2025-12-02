@@ -198,9 +198,9 @@ describe('ProfileList', () => {
 			expect(listItems.length).toBe(2);
 
 			// Each item should have date information
-			listItems.forEach((item) => {
+            for (const item of listItems) {
 				expect(item.text()).toMatch(/月.*日|:/);
-			});
+			}
 		});
 	});
 

@@ -20,6 +20,9 @@ declare global {
 
       /** Enable mock mode for Azure Speech Service */
       MOCK_AZURE?: "true" | "false";
+
+      /** Use mock DiarizationClient */
+      USE_MOCK_SPEECH?: "true" | "false";
     }
   }
 }

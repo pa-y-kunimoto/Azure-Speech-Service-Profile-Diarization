@@ -127,32 +127,32 @@
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T043 [P] [US3] セッション作成 API コントラクトテスト apps/api/tests/contract/session.test.ts（POST /api/session）
-- [ ] T044 [P] [US3] プロフィール登録 API コントラクトテスト apps/api/tests/contract/registerProfile.test.ts（POST /api/session/{id}/register-profile）
-- [ ] T045 [P] [US3] SpeechService 単体テスト packages/speech-client/tests/unit/speechService.test.ts（Azure SDK モック）
-- [ ] T046 [P] [US3] useDiarizationSession composable テスト apps/web/tests/unit/useDiarizationSession.test.ts
-- [ ] T047 [P] [US3] SessionControl コンポーネントテスト apps/web/tests/unit/SessionControl.test.ts
+- [X] T043 [P] [US3] セッション作成 API コントラクトテスト apps/api/tests/contract/session.test.ts（POST /api/session）
+- [X] T044 [P] [US3] プロフィール登録 API コントラクトテスト apps/api/tests/contract/registerProfile.test.ts（POST /api/session/{id}/register-profile）
+- [X] T045 [P] [US3] SpeechService 単体テスト packages/speech-client/tests/unit/speechService.test.ts（Azure SDK モック）
+- [X] T046 [P] [US3] useDiarizationSession composable テスト apps/web/tests/unit/useDiarizationSession.test.ts
+- [X] T047 [P] [US3] SessionControl コンポーネントテスト apps/web/tests/unit/SessionControl.test.ts
 
 ### Implementation for User Story 3
 
 #### Speech Client パッケージ
 
-- [ ] T048 [US3] DiarizationClient クラス packages/speech-client/src/diarizationClient.ts（ConversationTranscriber ラッパー）
-- [ ] T049 [US3] AudioProcessor クラス packages/speech-client/src/audioProcessor.ts（PushStream 管理）
-- [ ] T050 [US3] speech-client エクスポート packages/speech-client/src/index.ts
+- [X] T048 [US3] DiarizationClient クラス packages/speech-client/src/diarizationClient.ts（ConversationTranscriber ラッパー）
+- [X] T049 [US3] AudioProcessor クラス packages/speech-client/src/audioProcessor.ts（PushStream 管理）
+- [X] T050 [US3] speech-client エクスポート packages/speech-client/src/index.ts
 
 #### バックエンド API
 
-- [ ] T051 [US3] SpeechService apps/api/src/services/speechService.ts（Azure SDK 接続、セッション管理）
-- [ ] T052 [US3] セッションルート apps/api/src/routes/session.ts（POST /api/session, GET /api/session/{id}, DELETE /api/session/{id}）
-- [ ] T053 [US3] プロフィール登録ルート apps/api/src/routes/speech.ts（POST /api/session/{id}/register-profile）
-- [ ] T054 [US3] ルーティング統合 apps/api/src/index.ts（session, speech ルートを追加）
+- [X] T051 [US3] SpeechService apps/api/src/services/speechService.ts（Azure SDK 接続、セッション管理）
+- [X] T052 [US3] セッションルート apps/api/src/routes/session.ts（POST /api/session, GET /api/session/{id}, DELETE /api/session/{id}）
+- [X] T053 [US3] プロフィール登録ルート apps/api/src/routes/speech.ts（POST /api/session/{id}/register-profile）
+- [X] T054 [US3] ルーティング統合 apps/api/src/index.ts（session, speech ルートを追加）
 
 #### フロントエンド
 
-- [ ] T055 [US3] useDiarizationSession composable apps/web/composables/useDiarizationSession.ts（セッション状態管理、API 呼び出し）
-- [ ] T056 [US3] SessionControl コンポーネント apps/web/components/SessionControl.vue（プロフィール選択、開始ボタン、speakerId マッピング表示）
-- [ ] T057 [US3] session.vue にコンポーネントを統合 apps/web/pages/session.vue
+- [X] T055 [US3] useDiarizationSession composable apps/web/composables/useDiarizationSession.ts（セッション状態管理、API 呼び出し）
+- [X] T056 [US3] SessionControl コンポーネント apps/web/components/SessionControl.vue（プロフィール選択、開始ボタン、speakerId マッピング表示）
+- [X] T057 [US3] session.vue にコンポーネントを統合 apps/web/pages/session.vue
 
 **Checkpoint**: US3 完了 - プロフィール選択 → Azure セッション開始 → speakerId マッピング表示が可能
 
@@ -166,24 +166,24 @@
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T058 [P] [US4] WebSocket メッセージハンドラーテスト apps/api/tests/unit/wsHandler.test.ts
-- [ ] T059 [P] [US4] リアルタイム認識統合テスト apps/api/tests/integration/realtime.test.ts（Azure SDK モック）
-- [ ] T060 [P] [US4] TranscriptView コンポーネントテスト apps/web/tests/unit/TranscriptView.test.ts
+- [X] T058 [P] [US4] WebSocket メッセージハンドラーテスト apps/api/tests/unit/wsHandler.test.ts
+- [X] T059 [P] [US4] リアルタイム認識統合テスト apps/api/tests/integration/realtime.test.ts（Azure SDK モック）
+- [X] T060 [P] [US4] TranscriptView コンポーネントテスト apps/web/tests/unit/TranscriptView.test.ts
 
 ### Implementation for User Story 4
 
 #### バックエンド WebSocket
 
-- [ ] T061 [US4] WebSocket サーバー設定 apps/api/src/ws/index.ts（ws パッケージ）
-- [ ] T062 [US4] WebSocket メッセージハンドラー apps/api/src/ws/handler.ts（audio, control メッセージ処理）
-- [ ] T063 [US4] リアルタイム文字起こしサービス apps/api/src/services/realtimeService.ts（PushStream 連携）
-- [ ] T064 [US4] WebSocket ルート統合 apps/api/src/index.ts（/ws/session/{id}）
+- [X] T061 [US4] WebSocket サーバー設定 apps/api/src/ws/index.ts（ws パッケージ）
+- [X] T062 [US4] WebSocket メッセージハンドラー apps/api/src/ws/handler.ts（audio, control メッセージ処理）
+- [X] T063 [US4] リアルタイム文字起こしサービス apps/api/src/services/realtimeService.ts（PushStream 連携）
+- [X] T064 [US4] WebSocket ルート統合 apps/api/src/index.ts（/ws/session/{id}）
 
 #### フロントエンド
 
-- [ ] T065 [US4] useRealtimeRecognition composable apps/web/composables/useRealtimeRecognition.ts（WebSocket 接続、マイク入力送信）
-- [ ] T066 [US4] TranscriptView コンポーネント apps/web/components/TranscriptView.vue（リアルタイムテキスト表示、話者名表示）
-- [ ] T067 [US4] session.vue に TranscriptView を統合 apps/web/pages/session.vue（開始/停止ボタン）
+- [X] T065 [US4] useRealtimeRecognition composable apps/web/composables/useRealtimeRecognition.ts（WebSocket 接続、マイク入力送信）
+- [X] T066 [US4] TranscriptView コンポーネント apps/web/components/TranscriptView.vue（リアルタイムテキスト表示、話者名表示）
+- [X] T067 [US4] session.vue に TranscriptView を統合 apps/web/pages/session.vue（開始/停止ボタン）
 
 **Checkpoint**: US4 完了 - リアルタイムで話者名付きテキストが表示される
 

@@ -1,0 +1,461 @@
+/**
+ * useRealtimeRecognition - Composable for real-time speech recognition
+ *
+ * Manages WebSocket connection to the transcription service.
+ * Handles audio capture and streaming to the backend.
+ */
+
+import { ref, computed, onUnmounted } from 'vue';
+
+/**
+ * Utterance data structure from the backend
+ */
+export interface Utterance {
+	id: string;
+	text: string;
+	speakerId: string;
+	speakerName: string;
+	timestamp: string;
+	offsetMs: number;
+	confidence: number;
+	isFinal: boolean;
+}
+
+/**
+ * Speaker mapping data
+ */
+export interface SpeakerMapping {
+	speakerId: string;
+	profileId: string;
+	profileName: string;
+	isRegistered: boolean;
+}
+
+/**
+ * Recognition status
+ */
+export type RecognitionStatus = 'idle' | 'connecting' | 'connected' | 'active' | 'paused' | 'error' | 'ended';
+
+/**
+ * Error information
+ */
+export interface RecognitionError {
+	code: string;
+	message: string;
+	recoverable: boolean;
+}
+
+/**
+ * Options for useRealtimeRecognition
+ */
+export interface UseRealtimeRecognitionOptions {
+	sessionId: string;
+	apiBaseUrl?: string;
+	onUtterance?: (utterance: Utterance) => void;
+	onInterim?: (utterance: Utterance) => void;
+	onSpeakerDetected?: (speakerId: string) => void;
+	onError?: (error: RecognitionError) => void;
+}
+
+/**
+ * Composable for real-time speech recognition
+ */
+export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
+	const {
+		sessionId,
+		apiBaseUrl = 'ws://localhost:3001',
+		onUtterance,
+		onInterim,
+		onSpeakerDetected,
+		onError,
+	} = options;
+
+	// State
+	const status = ref<RecognitionStatus>('idle');
+	const utterances = ref<Utterance[]>([]);
+	const interimText = ref('');
+	const interimSpeaker = ref('');
+	const detectedSpeakers = ref<string[]>([]);
+	const speakerMappings = ref<SpeakerMapping[]>([]);
+	const error = ref<RecognitionError | null>(null);
+
+	// WebSocket and MediaRecorder refs
+	let socket: WebSocket | null = null;
+	let mediaStream: MediaStream | null = null;
+	let audioContext: AudioContext | null = null;
+	let scriptProcessor: ScriptProcessorNode | null = null;
+
+	// Computed
+	const isConnected = computed(() => status.value === 'connected' || status.value === 'active');
+	const isActive = computed(() => status.value === 'active');
+	const isRecording = computed(() => status.value === 'active');
+
+	/**
+	 * Connect to WebSocket server
+	 */
+	async function connect(): Promise<void> {
+		if (socket?.readyState === WebSocket.OPEN) {
+			return;
+		}
+
+		status.value = 'connecting';
+		error.value = null;
+
+		return new Promise((resolve, reject) => {
+			const wsUrl = `${apiBaseUrl}/ws/session/${sessionId}`;
+			socket = new WebSocket(wsUrl);
+
+			socket.onopen = () => {
+				console.log('WebSocket connected');
+				status.value = 'connected';
+				resolve();
+			};
+
+			socket.onmessage = (event) => {
+				handleMessage(event.data);
+			};
+
+			socket.onerror = (event) => {
+				console.error('WebSocket error:', event);
+				const err: RecognitionError = {
+					code: 'CONNECTION_ERROR',
+					message: 'WebSocket connection error',
+					recoverable: true,
+				};
+				error.value = err;
+				status.value = 'error';
+				onError?.(err);
+				reject(new Error('WebSocket connection error'));
+			};
+
+			socket.onclose = () => {
+				console.log('WebSocket closed');
+				if (status.value !== 'error') {
+					status.value = 'ended';
+				}
+				cleanup();
+			};
+		});
+	}
+
+	/**
+	 * Disconnect from WebSocket server
+	 */
+	function disconnect(): void {
+		if (socket) {
+			socket.close();
+			socket = null;
+		}
+		cleanup();
+		status.value = 'idle';
+	}
+
+	/**
+	 * Start recognition (microphone capture + transcription)
+	 */
+	async function start(): Promise<void> {
+		if (!socket || socket.readyState !== WebSocket.OPEN) {
+			await connect();
+		}
+
+		// Request microphone access
+		try {
+			mediaStream = await navigator.mediaDevices.getUserMedia({
+				audio: {
+					sampleRate: 16000,
+					channelCount: 1,
+					echoCancellation: true,
+					noiseSuppression: true,
+				},
+			});
+		} catch (err) {
+			const mediaError: RecognitionError = {
+				code: 'MICROPHONE_ERROR',
+				message: 'Failed to access microphone',
+				recoverable: false,
+			};
+			error.value = mediaError;
+			onError?.(mediaError);
+			throw err;
+		}
+
+		// Set up audio processing
+		audioContext = new AudioContext({ sampleRate: 16000 });
+		const source = audioContext.createMediaStreamSource(mediaStream);
+
+		// Use ScriptProcessorNode for capturing audio data
+		// Note: This is deprecated but works reliably across browsers
+		scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+
+		scriptProcessor.onaudioprocess = (event) => {
+			if (status.value !== 'active') return;
+
+			const inputData = event.inputBuffer.getChannelData(0);
+			const pcmData = convertToInt16(inputData);
+			sendAudioChunk(pcmData);
+		};
+
+		source.connect(scriptProcessor);
+		scriptProcessor.connect(audioContext.destination);
+
+		// Send start command
+		sendControlMessage('start');
+	}
+
+	/**
+	 * Stop recognition
+	 */
+	async function stop(): Promise<void> {
+		sendControlMessage('stop');
+		cleanup();
+	}
+
+	/**
+	 * Pause recognition
+	 */
+	function pause(): void {
+		sendControlMessage('pause');
+	}
+
+	/**
+	 * Resume recognition
+	 */
+	function resume(): void {
+		sendControlMessage('resume');
+	}
+
+	/**
+	 * Map a detected speaker to a profile
+	 */
+	function mapSpeaker(speakerId: string, profileId: string, displayName: string): void {
+		// This would typically be an API call
+		speakerMappings.value = [
+			...speakerMappings.value.filter((m) => m.speakerId !== speakerId),
+			{
+				speakerId,
+				profileId,
+				profileName: displayName,
+				isRegistered: true,
+			},
+		];
+	}
+
+	/**
+	 * Convert Float32Array to Int16Array (PCM)
+	 */
+	function convertToInt16(float32Array: Float32Array): ArrayBuffer {
+		const int16Array = new Int16Array(float32Array.length);
+		for (let i = 0; i < float32Array.length; i++) {
+			const s = Math.max(-1, Math.min(1, float32Array?.[i] || 0));
+			int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+		}
+		return int16Array.buffer;
+	}
+
+	/**
+	 * Send audio chunk to server
+	 */
+	function sendAudioChunk(audioData: ArrayBuffer): void {
+		if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+		const base64 = arrayBufferToBase64(audioData);
+		socket.send(
+			JSON.stringify({
+				type: 'audio',
+				data: base64,
+				timestamp: new Date().toISOString(),
+			})
+		);
+	}
+
+	/**
+	 * Send control message to server
+	 */
+	function sendControlMessage(action: 'start' | 'stop' | 'pause' | 'resume'): void {
+		if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+		socket.send(
+			JSON.stringify({
+				type: 'control',
+				action,
+			})
+		);
+	}
+
+	/**
+	 * Handle incoming WebSocket message
+	 */
+	function handleMessage(data: string): void {
+		try {
+			const message = JSON.parse(data);
+
+			switch (message.type) {
+				case 'status':
+					handleStatusMessage(message);
+					break;
+				case 'transcription':
+					handleTranscriptionMessage(message);
+					break;
+				case 'speaker_detected':
+					handleSpeakerDetectedMessage(message);
+					break;
+				case 'speaker_registered':
+					handleSpeakerRegisteredMessage(message);
+					break;
+				case 'error':
+					handleErrorMessage(message);
+					break;
+				default:
+					console.warn('Unknown message type:', message.type);
+			}
+		} catch (err) {
+			console.error('Failed to parse message:', err);
+		}
+	}
+
+	/**
+	 * Handle status message
+	 */
+	function handleStatusMessage(message: { status: string; message?: string }): void {
+		switch (message.status) {
+			case 'connected':
+				status.value = 'connected';
+				break;
+			case 'active':
+				status.value = 'active';
+				break;
+			case 'paused':
+				status.value = 'paused';
+				break;
+			case 'ended':
+				status.value = 'ended';
+				break;
+		}
+	}
+
+	/**
+	 * Handle transcription message
+	 */
+	function handleTranscriptionMessage(message: { utterance: Utterance }): void {
+		const utterance = message.utterance;
+
+		if (utterance.isFinal) {
+			// Final result - add to utterances list
+			utterances.value = [...utterances.value, utterance];
+			interimText.value = '';
+			interimSpeaker.value = '';
+			onUtterance?.(utterance);
+		} else {
+			// Interim result - update interim text
+			interimText.value = utterance.text;
+			interimSpeaker.value = utterance.speakerName;
+			onInterim?.(utterance);
+		}
+	}
+
+	/**
+	 * Handle speaker detected message
+	 */
+	function handleSpeakerDetectedMessage(message: { speakerId: string }): void {
+		if (!detectedSpeakers.value.includes(message.speakerId)) {
+			detectedSpeakers.value = [...detectedSpeakers.value, message.speakerId];
+			onSpeakerDetected?.(message.speakerId);
+		}
+	}
+
+	/**
+	 * Handle speaker registered message
+	 */
+	function handleSpeakerRegisteredMessage(message: { mapping: SpeakerMapping }): void {
+		speakerMappings.value = [
+			...speakerMappings.value.filter((m) => m.speakerId !== message.mapping.speakerId),
+			message.mapping,
+		];
+	}
+
+	/**
+	 * Handle error message
+	 */
+	function handleErrorMessage(message: RecognitionError): void {
+		error.value = message;
+		onError?.(message);
+
+		if (!message.recoverable) {
+			status.value = 'error';
+		}
+	}
+
+	/**
+	 * Convert ArrayBuffer to Base64
+	 */
+	function arrayBufferToBase64(buffer: ArrayBuffer): string {
+		const bytes = new Uint8Array(buffer);
+		let binary = '';
+		for (let i = 0; i < bytes.length; i++) {
+			binary += String.fromCharCode(bytes?.[i] || 0);
+		}
+		return btoa(binary);
+	}
+
+	/**
+	 * Cleanup resources
+	 */
+	function cleanup(): void {
+		if (scriptProcessor) {
+			scriptProcessor.disconnect();
+			scriptProcessor = null;
+		}
+
+		if (audioContext) {
+			audioContext.close();
+			audioContext = null;
+		}
+
+		if (mediaStream) {
+            for (const track of mediaStream.getTracks()) {
+                track.stop();
+            }
+			mediaStream = null;
+		}
+	}
+
+	/**
+	 * Clear all utterances
+	 */
+	function clearUtterances(): void {
+		utterances.value = [];
+		interimText.value = '';
+		interimSpeaker.value = '';
+	}
+
+	// Cleanup on unmount
+	onUnmounted(() => {
+		disconnect();
+	});
+
+	return {
+		// State
+		status,
+		utterances,
+		interimText,
+		interimSpeaker,
+		detectedSpeakers,
+		speakerMappings,
+		error,
+
+		// Computed
+		isConnected,
+		isActive,
+		isRecording,
+
+		// Methods
+		connect,
+		disconnect,
+		start,
+		stop,
+		pause,
+		resume,
+		mapSpeaker,
+		clearUtterances,
+	};
+}

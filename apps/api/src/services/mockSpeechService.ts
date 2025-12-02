@@ -4,11 +4,9 @@
  */
 
 import type {
-	DiarizationSession,
 	SessionId,
 	SpeakerMapping,
 	Utterance,
-	VoiceProfile,
 } from '@speaker-diarization/core';
 
 /**
@@ -156,5 +154,177 @@ export function logMockModeStatus(): void {
 		console.log('   Set SPEECH_KEY and SPEECH_ENDPOINT to use real Azure services');
 	} else {
 		console.log('🔌 Connected to Azure Speech Service');
+	}
+}
+
+/**
+ * Mock DiarizationClient for development without Azure credentials
+ * Implements the same interface as the real DiarizationClient
+ */
+export function createMockDiarizationClient(_sessionId: string): MockDiarizationClient {
+	return new MockDiarizationClient();
+}
+
+type EventCallback = (...args: unknown[]) => void;
+
+interface MockTranscriptionResult {
+	result: {
+		text: string;
+		speakerId: string;
+		offset: number;
+		duration: number;
+		reason: number;
+	};
+}
+
+/**
+ * Mock DiarizationClient that simulates Azure Speech Service
+ */
+class MockDiarizationClient {
+	private eventListeners: Map<string, EventCallback[]> = new Map();
+	private speakerMappings: Map<string, { profileId: string; displayName: string }> = new Map();
+	private _isTranscribing = false;
+	private intervalId: NodeJS.Timeout | null = null;
+	private phraseIndex = 0;
+	private currentOffset = 0;
+
+	private mockPhrases = [
+		'こんにちは、本日はお集まりいただきありがとうございます。',
+		'はい、それでは会議を始めましょう。',
+		'この件について、何かご意見はありますか？',
+		'私からは特にありません。',
+		'では、次の議題に移りましょう。',
+		'承知しました。',
+		'その点については、もう少し検討が必要だと思います。',
+		'なるほど、おっしゃる通りですね。',
+		'スケジュールはいかがでしょうか？',
+		'来週の金曜日までに完了できると思います。',
+	];
+
+	get isTranscribing(): boolean {
+		return this._isTranscribing;
+	}
+
+	async enrollVoiceProfile(profileId: string, _audioData: Buffer): Promise<{ profileId: string; speakerId: string }> {
+		await delay(300 + Math.random() * 500);
+		const speakerId = `Guest-${this.speakerMappings.size + 1}`;
+		return { profileId, speakerId };
+	}
+
+	async startTranscription(): Promise<void> {
+		this._isTranscribing = true;
+		this.phraseIndex = 0;
+		this.currentOffset = 0;
+
+		// Emit session started
+		this.emit('sessionStarted', {});
+
+		// Start generating mock transcriptions
+		this.intervalId = setInterval(() => {
+			if (!this._isTranscribing) return;
+
+			const speakerIndex = (this.phraseIndex % 2) + 1;
+			const speakerId = `Guest-${speakerIndex}`;
+			const phrase = this.mockPhrases[this.phraseIndex % this.mockPhrases.length];
+			const duration = 1000 + Math.random() * 2000;
+
+			// Emit interim result
+			const interimResult: MockTranscriptionResult = {
+				result: {
+					// biome-ignore lint/style/useTemplate: <explanation>
+					text: phrase?.substring(0, Math.floor((phrase?.length || 0) / 2)) + '...',
+					speakerId,
+					offset: this.currentOffset,
+					duration: duration / 2,
+					reason: 1,
+				},
+			};
+			this.emit('transcribing', interimResult);
+
+			// Emit final result after a short delay
+			setTimeout(() => {
+				if (!this._isTranscribing) return;
+
+				// Check if this is a new speaker
+				if (!this.speakerMappings.has(speakerId)) {
+					this.emit('speakerDetected', speakerId);
+				}
+
+				const finalResult: MockTranscriptionResult = {
+					result: {
+						text: phrase || '',
+						speakerId,
+						offset: this.currentOffset,
+						duration,
+						reason: 1,
+					},
+				};
+				this.emit('transcribed', finalResult);
+			}, 500);
+
+			this.currentOffset += duration + 500;
+			this.phraseIndex++;
+		}, 3000);
+	}
+
+	async stopTranscription(): Promise<void> {
+		this._isTranscribing = false;
+		if (this.intervalId) {
+			clearInterval(this.intervalId);
+			this.intervalId = null;
+		}
+		this.emit('sessionStopped', {});
+	}
+
+	pushAudioChunk(_chunk: Uint8Array): void {
+		// Mock: audio is not actually processed
+	}
+
+	validateAudioFormat(format: { sampleRate: number; bitsPerSample: number; channels: number }): boolean {
+		return format.sampleRate === 16000 && format.bitsPerSample === 16 && format.channels === 1;
+	}
+
+	getEnrolledProfiles(): string[] {
+		return Array.from(this.speakerMappings.keys());
+	}
+
+	setSpeakerMapping(azureSpeakerId: string, profileId: string, displayName: string): void {
+		this.speakerMappings.set(azureSpeakerId, { profileId, displayName });
+	}
+
+	getSpeakerName(azureSpeakerId: string): string {
+		return this.speakerMappings.get(azureSpeakerId)?.displayName ?? 'Unknown Speaker';
+	}
+
+	on(event: string, callback: EventCallback): void {
+		if (!this.eventListeners.has(event)) {
+			this.eventListeners.set(event, []);
+		}
+		this.eventListeners.get(event)!.push(callback);
+	}
+
+	off(event: string, callback: EventCallback): void {
+		const listeners = this.eventListeners.get(event);
+		if (listeners) {
+			const index = listeners.indexOf(callback);
+			if (index !== -1) {
+				listeners.splice(index, 1);
+			}
+		}
+	}
+
+	private emit(event: string, ...args: unknown[]): void {
+		const listeners = this.eventListeners.get(event);
+		if (listeners) {
+			for (const callback of listeners) {
+				callback(...args);
+			}
+		}
+	}
+
+	async dispose(): Promise<void> {
+		await this.stopTranscription();
+		this.eventListeners.clear();
+		this.speakerMappings.clear();
 	}
 }
