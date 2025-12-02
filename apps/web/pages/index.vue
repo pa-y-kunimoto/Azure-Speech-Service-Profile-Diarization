@@ -57,10 +57,7 @@
         <VoiceProfileUploader @profile-added="handleProfileAdded" />
       </div>
       <div v-else class="space-y-4">
-        <!-- VoiceRecorder will be added here -->
-        <p class="text-gray-500 text-center py-8">
-          VoiceRecorder コンポーネント（Phase 4 で実装）
-        </p>
+        <VoiceRecorder @profile-added="handleProfileAdded" />
       </div>
     </div>
 

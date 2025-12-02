@@ -105,15 +105,15 @@
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T037 [P] [US2] useAudioRecorder composable 単体テスト apps/web/tests/unit/useAudioRecorder.test.ts（MediaRecorder モック）
-- [ ] T038 [P] [US2] VoiceRecorder コンポーネントテスト apps/web/tests/unit/VoiceRecorder.test.ts
+- [X] T037 [P] [US2] useAudioRecorder composable 単体テスト apps/web/tests/unit/useAudioRecorder.test.ts（MediaRecorder モック）
+- [X] T038 [P] [US2] VoiceRecorder コンポーネントテスト apps/web/tests/unit/VoiceRecorder.test.ts
 
 ### Implementation for User Story 2
 
-- [ ] T039 [US2] useAudioRecorder composable apps/web/composables/useAudioRecorder.ts（MediaRecorder, Web Audio API, WAV 変換）
-- [ ] T040 [US2] WAV エンコーダーユーティリティ apps/web/utils/wavEncoder.ts（16kHz, 16-bit, Mono）
-- [ ] T041 [US2] VoiceRecorder コンポーネント apps/web/components/VoiceRecorder.vue（録音開始/停止、プレビュー再生、保存）
-- [ ] T042 [US2] index.vue に VoiceRecorder を追加 apps/web/pages/index.vue（タブ切り替え: アップロード/録音）
+- [X] T039 [US2] useAudioRecorder composable apps/web/composables/useAudioRecorder.ts（MediaRecorder, Web Audio API, WAV 変換）
+- [X] T040 [US2] WAV エンコーダーユーティリティ apps/web/utils/wavEncoder.ts（16kHz, 16-bit, Mono）
+- [X] T041 [US2] VoiceRecorder コンポーネント apps/web/components/VoiceRecorder.vue（録音開始/停止、プレビュー再生、保存）
+- [X] T042 [US2] index.vue に VoiceRecorder を追加 apps/web/pages/index.vue（タブ切り替え: アップロード/録音）
 
 **Checkpoint**: US2 完了 - ブラウザマイクで録音し、音声プロフィールとして保存が可能
 
