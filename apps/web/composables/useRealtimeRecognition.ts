@@ -6,6 +6,7 @@
  */
 
 import { ref, computed, onUnmounted } from 'vue';
+import { useApiFetch } from './useApiFetch';
 
 /**
  * Utterance data structure from the backend
@@ -50,7 +51,6 @@ export interface RecognitionError {
  */
 export interface UseRealtimeRecognitionOptions {
 	sessionId: string;
-	apiBaseUrl?: string;
 	maxReconnectAttempts?: number;
 	reconnectDelay?: number;
 	onUtterance?: (utterance: Utterance) => void;
@@ -67,7 +67,6 @@ export interface UseRealtimeRecognitionOptions {
 export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 	const {
 		sessionId,
-		apiBaseUrl = 'ws://localhost:3001',
 		maxReconnectAttempts = 3,
 		reconnectDelay = 1000,
 		onUtterance,
@@ -77,6 +76,9 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		onReconnecting,
 		onReconnected,
 	} = options;
+
+	// Get WebSocket URL from API fetch helper
+	const { getWebSocketUrl } = useApiFetch();
 
 	// State
 	const status = ref<RecognitionStatus>('idle');
@@ -114,7 +116,7 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		shouldReconnect = true;
 
 		return new Promise((resolve, reject) => {
-			const wsUrl = `${apiBaseUrl}/ws/session/${sessionId}`;
+			const wsUrl = getWebSocketUrl(`/ws/session/${sessionId}`);
 			socket = new WebSocket(wsUrl);
 
 			socket.onopen = () => {

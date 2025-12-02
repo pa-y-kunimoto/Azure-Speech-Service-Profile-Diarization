@@ -11,6 +11,7 @@
 
 import { ref, computed } from 'vue';
 import type { SpeakerMapping } from '@speaker-diarization/core';
+import { useApiFetch } from './useApiFetch';
 
 // Session status type matching API schema
 type DiarizationSessionStatus =
@@ -53,6 +54,9 @@ interface RegistrationProgress {
 }
 
 export function useDiarizationSession() {
+	// API fetch helper
+	const { apiFetch } = useApiFetch();
+
 	// State
 	const sessionId = ref<string | null>(null);
 	const status = ref<DiarizationSessionStatus>('idle');
@@ -79,7 +83,7 @@ export function useDiarizationSession() {
 			error.value = null;
 			status.value = 'connecting';
 
-			const response = await $fetch<SessionResponse>('/api/session', {
+			const response = await apiFetch<SessionResponse>('/api/session', {
 				method: 'POST',
 				body: { profileIds },
 			});
@@ -110,7 +114,7 @@ export function useDiarizationSession() {
 			const previousStatus = status.value;
 			status.value = 'registering';
 
-			const response = await $fetch<SpeakerMappingResponse>(
+			const response = await apiFetch<SpeakerMappingResponse>(
 				`/api/session/${sessionId.value}/register-profile`,
 				{
 					method: 'POST',
@@ -173,7 +177,7 @@ export function useDiarizationSession() {
 		try {
 			error.value = null;
 
-			const response = await $fetch<SessionResponse>(`/api/session/${id}`);
+			const response = await apiFetch<SessionResponse>(`/api/session/${id}`);
 
 			sessionId.value = response.id;
 			status.value = response.status;
@@ -194,7 +198,7 @@ export function useDiarizationSession() {
 		try {
 			error.value = null;
 
-			const response = await $fetch<SessionResponse>(`/api/session/${sessionId.value}`, {
+			const response = await apiFetch<SessionResponse>(`/api/session/${sessionId.value}`, {
 				method: 'DELETE',
 			});
 

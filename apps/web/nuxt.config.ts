@@ -21,6 +21,22 @@ export default defineNuxtConfig({
 	typescript: {
 		strict: true,
 		typeCheck: true,
+		tsConfig: {
+			compilerOptions: {
+				target: "ESNext",
+				module: "ESNext",
+				moduleResolution: "Bundler",
+				lib: ["ESNext", "DOM", "DOM.Iterable"],
+				jsx: "preserve",
+				baseUrl: ".",
+				paths: {
+					"~/*": ["./*"],
+					"@/*": ["./*"]
+				},
+			},
+			include: ["**/*.ts", "**/*.vue", ".nuxt/nuxt.d.ts"],
+			exclude: ["node_modules", "dist", ".nuxt", ".output"]
+		},
 	},
 
 	runtimeConfig: {

@@ -55,7 +55,7 @@
 
     <!-- Toast Notifications -->
     <ToastNotification
-      :toasts="toasts"
+      :toasts="[...toasts]"
       position="top-right"
       @dismiss="handleToastDismiss"
     />

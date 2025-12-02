@@ -137,7 +137,7 @@
         </button>
       </div>
       <SpeakerTimeline
-        :utterances="recognition.utterances.value"
+        :utterances="transformedUtterances"
         :speaker-mappings="speakerMappings"
         :session-duration-seconds="sessionDurationSeconds"
         :selected-speaker="selectedSpeaker"
@@ -172,8 +172,7 @@ const sessionId = ref<string | null>(null);
 
 // Initialize recognition composable when session starts
 let recognition = useRealtimeRecognition({
-  sessionId: 'placeholder',
-  apiBaseUrl: 'ws://localhost:3001',
+  sessionId: 'placeholder'
 });
 
 // Status display configuration
@@ -209,7 +208,6 @@ function handleSessionStarted(id: string) {
   // Reinitialize recognition with correct session ID
   recognition = useRealtimeRecognition({
     sessionId: id,
-    apiBaseUrl: 'ws://localhost:3001',
     onError: (error) => {
       console.error('Recognition error:', error);
     },
@@ -269,6 +267,21 @@ const sessionDurationSeconds = computed(() => {
   if (!sessionStartTime.value) return 0;
   const now = Date.now();
   return Math.floor((now - sessionStartTime.value) / 1000);
+});
+
+// Transform utterances to match SpeakerTimeline's expected type
+const transformedUtterances = computed(() => {
+  return recognition.utterances.value.map(utterance => ({
+    ...utterance,
+    sessionId: sessionId.value || '',
+    azureSpeakerId: utterance.speakerId,
+    startOffsetSeconds: utterance.offsetMs / 1000,
+    endOffsetSeconds: (utterance.offsetMs / 1000) + 3, // Approximate duration
+    durationSeconds: 3, // Approximate duration
+    recognizedAt: utterance.timestamp,
+    createdAt: new Date(utterance.timestamp),
+    updatedAt: new Date(utterance.timestamp),
+  }));
 });
 
 /**
