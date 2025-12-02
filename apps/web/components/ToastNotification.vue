@@ -123,11 +123,17 @@ onUnmounted(() => {
 		:class="positionClasses"
 		data-testid="toast-container"
 	>
-		<TransitionGroup name="toast">
+		<TransitionGroup
+			enter-active-class="transition-all duration-300 ease-out"
+			leave-active-class="transition-all duration-300 ease-in"
+			enter-from-class="opacity-0 translate-x-full"
+			leave-to-class="opacity-0 translate-x-full"
+			move-class="transition-transform duration-300 ease-in-out"
+		>
 			<div
 				v-for="toast in toasts"
 				:key="toast.id"
-				class="pointer-events-auto rounded-lg border-l-4 p-4 shadow-lg transition-all duration-300"
+				class="pointer-events-auto rounded-lg border-l-4 p-4 shadow-lg"
 				:class="[getTypeStyle(toast.type).bg, getTypeStyle(toast.type).border]"
 				:data-testid="`toast-${toast.id}`"
 				role="alert"
@@ -228,24 +234,3 @@ onUnmounted(() => {
 		</TransitionGroup>
 	</div>
 </template>
-
-<style scoped>
-.toast-enter-active,
-.toast-leave-active {
-	transition: all 0.3s ease;
-}
-
-.toast-enter-from {
-	opacity: 0;
-	transform: translateX(100%);
-}
-
-.toast-leave-to {
-	opacity: 0;
-	transform: translateX(100%);
-}
-
-.toast-move {
-	transition: transform 0.3s ease;
-}
-</style>
