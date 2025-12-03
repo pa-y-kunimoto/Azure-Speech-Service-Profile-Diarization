@@ -1,0 +1,449 @@
+openapi: 3.0.3
+info:
+  title: Speaker Diarization Experiment API
+  description: Azure Speech Service を使用した話者分離・話者認識実験のバックエンド API
+  version: 1.0.0
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3001/api
+    description: 開発環境
+  - url: https://api.example.com/api
+    description: 本番環境
+
+tags:
+  - name: health
+    description: ヘルスチェック
+  - name: session
+    description: 話者分離セッション管理
+  - name: speech
+    description: 音声認識・話者分離
+
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: ヘルスチェック
+      description: API サーバーの稼働状態を確認
+      operationId: getHealth
+      responses:
+        '200':
+          description: サーバー正常稼働
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /session:
+    post:
+      tags:
+        - session
+      summary: 話者分離セッションを開始
+      description: Azure Speech Service との接続を確立し、セッションを開始
+      operationId: createSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: セッション作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Azure 接続エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /session/{sessionId}:
+    get:
+      tags:
+        - session
+      summary: セッション状態を取得
+      description: 指定したセッションの現在の状態を取得
+      operationId: getSession
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: セッション情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '404':
+          description: セッションが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - session
+      summary: セッションを終了
+      description: セッションを終了し、Azure との接続を切断
+      operationId: deleteSession
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: セッション終了成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '404':
+          description: セッションが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /session/{sessionId}/register-profile:
+    post:
+      tags:
+        - speech
+      summary: 音声プロフィールを登録
+      description: 音声プロフィールをセッションに送信し、speakerId を取得
+      operationId: registerProfile
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterProfileRequest'
+      responses:
+        '200':
+          description: プロフィール登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeakerMappingResponse'
+        '400':
+          description: 不正な音声データ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: セッションが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /session/{sessionId}/transcribe:
+    post:
+      tags:
+        - speech
+      summary: 音声を話者分離付きで文字起こし
+      description: 音声データを送信し、話者分離付きの認識結果を取得
+      operationId: transcribe
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TranscribeRequest'
+      responses:
+        '200':
+          description: 認識結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptionResponse'
+        '400':
+          description: 不正な音声データ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: セッションが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /session/{sessionId}/stream:
+    get:
+      tags:
+        - speech
+      summary: リアルタイム認識用 WebSocket 接続情報
+      description: WebSocket 接続のための情報を取得
+      operationId: getStreamInfo
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: WebSocket 接続情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamInfoResponse'
+        '404':
+          description: セッションが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          example: healthy
+        timestamp:
+          type: string
+          format: date-time
+        azureConnection:
+          type: string
+          enum: [connected, disconnected, unknown]
+          example: connected
+
+    CreateSessionRequest:
+      type: object
+      required:
+        - profileIds
+      properties:
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+          description: 使用する音声プロフィールの ID リスト
+
+    SessionResponse:
+      type: object
+      required:
+        - id
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [idle, connecting, registering, active, paused, ended, error]
+        createdAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        speakerMappings:
+          type: array
+          items:
+            $ref: '#/components/schemas/SpeakerMapping'
+        error:
+          $ref: '#/components/schemas/SessionError'
+
+    SpeakerMapping:
+      type: object
+      required:
+        - speakerId
+        - profileName
+        - isRegistered
+      properties:
+        speakerId:
+          type: string
+          example: Guest-1
+        profileId:
+          type: string
+          format: uuid
+        profileName:
+          type: string
+          example: "田中さん"
+        isRegistered:
+          type: boolean
+
+    SessionError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: AZURE_CONNECTION_FAILED
+        message:
+          type: string
+          example: Azure Speech Service への接続に失敗しました
+
+    RegisterProfileRequest:
+      type: object
+      required:
+        - audio
+        - profileId
+        - profileName
+      properties:
+        audio:
+          type: string
+          format: binary
+          description: WAV 形式の音声ファイル
+        profileId:
+          type: string
+          format: uuid
+          description: プロフィール ID
+        profileName:
+          type: string
+          description: プロフィール名
+
+    SpeakerMappingResponse:
+      type: object
+      required:
+        - speakerId
+        - profileId
+        - profileName
+      properties:
+        speakerId:
+          type: string
+          example: Guest-1
+        profileId:
+          type: string
+          format: uuid
+        profileName:
+          type: string
+
+    TranscribeRequest:
+      type: object
+      required:
+        - audio
+      properties:
+        audio:
+          type: string
+          format: binary
+          description: WAV 形式の音声データ
+
+    TranscriptionResponse:
+      type: object
+      required:
+        - utterances
+      properties:
+        utterances:
+          type: array
+          items:
+            $ref: '#/components/schemas/Utterance'
+
+    Utterance:
+      type: object
+      required:
+        - id
+        - text
+        - speakerId
+        - speakerName
+        - timestamp
+        - isFinal
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+          example: こんにちは、今日は良い天気ですね
+        speakerId:
+          type: string
+          example: Guest-1
+        speakerName:
+          type: string
+          example: 田中さん
+        timestamp:
+          type: string
+          format: date-time
+        offsetMs:
+          type: integer
+          example: 1500
+        durationMs:
+          type: integer
+          example: 2300
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.95
+        isFinal:
+          type: boolean
+
+    StreamInfoResponse:
+      type: object
+      required:
+        - websocketUrl
+        - sessionId
+      properties:
+        websocketUrl:
+          type: string
+          format: uri
+          example: ws://localhost:3001/ws/session/123e4567-e89b-12d3-a456-426614174000
+        sessionId:
+          type: string
+          format: uuid
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: INVALID_REQUEST
+        message:
+          type: string
+          example: リクエストが不正です
+        details:
+          type: object
+          additionalProperties: true
