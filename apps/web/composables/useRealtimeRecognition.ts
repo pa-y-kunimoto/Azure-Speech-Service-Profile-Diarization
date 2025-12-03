@@ -492,6 +492,10 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 	 * Handle speaker detected message
 	 */
 	function handleSpeakerDetectedMessage(message: { speakerId: string }): void {
+		// Skip 'Unknown' speakers - they cannot be mapped to profiles
+		if (message.speakerId === 'Unknown') {
+			return;
+		}
 		if (!detectedSpeakers.value.includes(message.speakerId)) {
 			detectedSpeakers.value = [...detectedSpeakers.value, message.speakerId];
 			onSpeakerDetected?.(message.speakerId);

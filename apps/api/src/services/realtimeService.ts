@@ -122,6 +122,10 @@ export class RealtimeService {
 
 		this.speakerDetectedHandler = (speakerId: unknown) => {
 			const id = speakerId as string;
+			// Skip 'Unknown' speakers - they cannot be mapped
+			if (id === 'Unknown') {
+				return;
+			}
 			// Track unmapped speakers
 			if (!this.unmappedSpeakers.includes(id)) {
 				this.unmappedSpeakers.push(id);
@@ -317,6 +321,10 @@ export class RealtimeService {
 	 * Called when a speakerId is detected while processing profile audio
 	 */
 	private trackEnrollmentSpeaker(speakerId: string): void {
+		// Skip 'Unknown' speakers - they cannot be mapped
+		if (speakerId === 'Unknown') {
+			return;
+		}
 		if (this.isEnrolling && this.currentEnrollmentProfile) {
 			// Add to current enrollment speakers (only if not already globally mapped)
 			if (!this.mappedSpeakerIds.has(speakerId)) {

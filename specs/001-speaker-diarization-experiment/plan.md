@@ -1,79 +1,38 @@
 # Implementation Plan: 話者分離・話者認識実験アプリケーション
 
-**Branch**: `001-speaker-diarization-experiment` | **Date**: 2025-12-01 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/001-speaker-diarization-experiment/spec.md`
-
-**Note**: This template is filled in by the `/speckit.plan` command.
+**Branch**: `001-speaker-diarization-experiment`  
+**Date**: 2025-12-01  
+**Updated**: 2025-12-03  
+**Status**: ✅ Implementation Complete  
+**Spec**: [spec.md](./spec.md)
 
 ## Summary
 
-Azure Speech Service の話者分離（Diarization）機能を活用して、事前登録した音声プロフィールに基づく話者認識を実験するWebアプリケーション。ユーザーは音声ファイルのアップロードまたはブラウザ録音でプロフィールを作成し、リアルタイムで話者を識別できる。
+Azure Speech Service の ConversationTranscriber API を使用して、リアルタイム話者分離・認識を実現する実験アプリケーション。Nuxt 4 フロントエンドと ExpressJS バックエンドで構成され、WebSocket 経由でリアルタイム音声認識を行う。
+
+**重要な発見**: Azure ConversationTranscriber は話者分離（Diarization）のみを行い、事前登録した音声プロフィールとの照合（Speaker Identification）は行わない。エンロールメントベースの自動マッピングと手動マッピングで対応。
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.x LTS（Node.js 22.x LTS）  
-**Primary Dependencies**: Nuxt 4（フロントエンド）、ExpressJS 4.x（バックエンド）、microsoft-cognitiveservices-speech-sdk  
-**Storage**: Session Storage（クライアント）、音声ファイルは Blob として一時保持  
-**Testing**: Vitest（ユニット/統合テスト）、Playwright（E2Eテスト）  
-**Target Platform**: Webブラウザ（Chrome/Edge/Safari/Firefox 最新版）  
-**Project Type**: Monorepo Web Application（フロントエンド + バックエンド + 共通ライブラリ）  
-**Performance Goals**: リアルタイム認識遅延 < 3秒、プロフィール登録 < 10秒/件  
-**Constraints**: セッションストレージ上限（5-10MB）、マイクアクセス権限必須  
-**Scale/Scope**: 実験用途、同時話者3人以上、セッション10分以上安定動作
+**Language/Version**: TypeScript 5.x, Node.js 22 LTS (VOLTA管理)  
+**Primary Dependencies**: Nuxt 4, ExpressJS 4.x, microsoft-cognitiveservices-speech-sdk, TailwindCSS 3.x  
+**Storage**: sessionStorage (ブラウザ)  
+**Testing**: Vitest, Playwright  
+**Target Platform**: Web (Chrome/Edge/Safari/Firefox)  
+**Project Type**: Monorepo (npm workspaces)  
+**Performance Goals**: 発話終了から表示まで3秒以内  
+**Constraints**: sessionStorage 5-10MB制限, 音声プロフィール5-10件まで  
+**Scale/Scope**: 実験用途、3人以上の同時話者識別
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+*GATE: すべてチェック済み*
 
-### I. Test-First Development (NON-NEGOTIABLE)
-
-| 項目 | 状態 | 備考 |
-|------|------|------|
-| TDD Red-Green-Refactor | ✅ PASS | 各ユーザーストーリーにテストフェーズを設計 |
-| 古典派 TDD 優先 | ✅ PASS | 実オブジェクト使用、モックは Azure SDK のみ |
-| モックは最終手段 | ✅ PASS | Azure Speech Service との接続部分のみモック許可 |
-| 80% カバレッジ | ✅ PASS | Vitest でカバレッジ測定 |
-| テスト独立性 | ✅ PASS | 各テストは単独実行可能に設計 |
-
-### II. Technology Stack Compliance
-
-| 項目 | 状態 | 備考 |
-|------|------|------|
-| Node.js LTS (VOLTA) | ✅ PASS | Node.js 22.x LTS を使用 |
-| TypeScript LTS (strict) | ✅ PASS | TypeScript 5.x、strict モード有効 |
-| Nuxt 4 (フロントエンド) | ✅ PASS | apps/web で使用 |
-| ExpressJS (バックエンド) | ✅ PASS | apps/api で使用 |
-| TailwindCSS | ✅ PASS | フロントエンドスタイリング |
-| npm workspaces | ✅ PASS | モノレポ構成 |
-
-### III. Coding Standards
-
-| 項目 | 状態 | 備考 |
-|------|------|------|
-| Biome.js フォーマッター | ✅ PASS | プロジェクトルートで設定 |
-| TypeScript strict | ✅ PASS | any 禁止、型安全性確保 |
-| 命名規則 | ✅ PASS | camelCase/PascalCase 遵守 |
-| 1ファイル1責務 | ✅ PASS | 機能ごとにモジュール化 |
-
-### IV. Secret Management
-
-| 項目 | 状態 | 備考 |
-|------|------|------|
-| 環境変数管理 | ✅ PASS | Azure Speech API キーは環境変数 |
-| .env を .gitignore | ✅ PASS | 設定済み |
-| .env.example 提供 | ✅ PASS | 必要変数テンプレート作成 |
-| ハードコーディング禁止 | ✅ PASS | シークレットはコードに含めない |
-
-### V. Monorepo & Library-First
-
-| 項目 | 状態 | 備考 |
-|------|------|------|
-| packages/ 配下に配置 | ✅ PASS | packages/core, packages/speech-client |
-| 循環依存禁止 | ✅ PASS | 依存方向を一方向に設計 |
-| 独立テスト | ✅ PASS | 各パッケージに tests/ |
-| パッケージ README | ✅ PASS | 各パッケージにドキュメント |
-
-**Constitution Check Result**: ✅ ALL PASS - Phase 0 に進行可能
+- [x] Test-First Development (TDD) - Vitest でユニットテスト先行
+- [x] Technology Stack Compliance - Node.js 22 LTS, Nuxt 4, ExpressJS, TailwindCSS
+- [x] Coding Standards - Biome.js でフォーマット
+- [x] Secret Management - 環境変数で管理, .env.example 提供
+- [x] Monorepo & Library-First - npm workspaces, packages/ 配下に共通コード
 
 ## Project Structure
 
@@ -81,147 +40,220 @@ Azure Speech Service の話者分離（Diarization）機能を活用して、事
 
 ```text
 specs/001-speaker-diarization-experiment/
-├── plan.md              # This file
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
-├── contracts/           # Phase 1 output (API contracts)
-│   └── api.yaml         # OpenAPI specification
-└── tasks.md             # Phase 2 output (/speckit.tasks)
+├── plan.md              # This file (実装計画)
+├── research.md          # 技術調査結果 (Azure 制限事項含む)
+├── data-model.md        # エンティティ定義
+├── quickstart.md        # クイックスタートガイド
+├── spec.md              # 機能仕様
+├── tasks.md             # 実装タスク (79タスク完了)
+├── checklists/
+│   └── requirements.md  # 要件チェックリスト
+└── contracts/
+    ├── api.yaml         # REST API 定義 (OpenAPI)
+    └── websocket.md     # WebSocket メッセージ定義
 ```
 
-### Source Code (repository root - Monorepo)
+### Source Code (repository root)
 
 ```text
 /
-├── package.json              # ルート package.json (npm workspaces)
-├── biome.json                # Biome.js 設定
-├── tsconfig.base.json        # 共通 TypeScript 設定
-├── volta.json                # VOLTA バージョン管理（新規作成）
-├── .env.example              # 環境変数テンプレート
-│
 ├── apps/
-│   ├── web/                  # Nuxt 4 フロントエンド
-│   │   ├── package.json
-│   │   ├── nuxt.config.ts
-│   │   ├── tailwind.config.ts
-│   │   ├── app.vue
-│   │   ├── pages/
-│   │   │   ├── index.vue           # ホーム（プロフィール管理）
-│   │   │   └── session.vue         # 話者分離セッション
-│   │   ├── components/
-│   │   │   ├── VoiceProfileUploader.vue
-│   │   │   ├── VoiceRecorder.vue
+│   ├── web/                    # Nuxt 4 フロントエンド (port 3002)
+│   │   ├── components/         # Vue コンポーネント
 │   │   │   ├── ProfileList.vue
 │   │   │   ├── SessionControl.vue
 │   │   │   ├── TranscriptView.vue
-│   │   │   └── SpeakerTimeline.vue
-│   │   ├── composables/
-│   │   │   ├── useVoiceProfile.ts
+│   │   │   ├── VoiceProfileUploader.vue
+│   │   │   └── VoiceRecorder.vue
+│   │   ├── composables/        # Vue Composables
 │   │   │   ├── useAudioRecorder.ts
-│   │   │   └── useDiarizationSession.ts
-│   │   └── tests/
-│   │       ├── unit/
-│   │       └── e2e/
+│   │   │   ├── useDiarizationSession.ts
+│   │   │   ├── useRealtimeRecognition.ts
+│   │   │   └── useVoiceProfile.ts
+│   │   ├── pages/
+│   │   │   ├── index.vue       # プロフィール管理
+│   │   │   └── session.vue     # セッション画面
+│   │   └── utils/
+│   │       ├── audioConverter.ts
+│   │       └── wavEncoder.ts
 │   │
-│   └── api/                  # ExpressJS バックエンド
-│       ├── package.json
+│   └── api/                    # ExpressJS バックエンド (port 3001)
 │       ├── src/
-│       │   ├── index.ts            # エントリーポイント
+│       │   ├── index.ts        # エントリーポイント
+│       │   ├── middleware/
+│       │   │   └── errorHandler.ts
 │       │   ├── routes/
-│       │   │   └── speech.ts       # /api/speech エンドポイント
+│       │   │   ├── health.ts
+│       │   │   ├── session.ts
+│       │   │   └── speech.ts
 │       │   ├── services/
-│       │   │   └── speechService.ts
-│       │   └── middleware/
-│       │       └── errorHandler.ts
+│       │   │   ├── mockSpeechService.ts   # Azure モック
+│       │   │   ├── realtimeService.ts     # リアルタイムサービス
+│       │   │   └── speechService.ts       # Azure SDK ラッパー
+│       │   └── ws/
+│       │       ├── handler.ts   # WebSocket ハンドラー
+│       │       └── index.ts
 │       └── tests/
-│           ├── unit/
-│           └── integration/
+│           ├── contract/
+│           ├── integration/
+│           └── unit/
 │
-├── packages/
-│   ├── core/                 # 共通型定義・ユーティリティ（既存）
-│   │   ├── package.json
-│   │   ├── src/
-│   │   │   ├── index.ts
-│   │   │   ├── types/
-│   │   │   │   ├── voiceProfile.ts
-│   │   │   │   ├── diarizationSession.ts
-│   │   │   │   ├── speakerMapping.ts
-│   │   │   │   └── utterance.ts
-│   │   │   └── utils/
-│   │   │       └── validation.ts
-│   │   └── tests/
-│   │
-│   └── speech-client/        # Azure Speech Service クライアント
-│       ├── package.json
-│       ├── src/
-│       │   ├── index.ts
-│       │   ├── diarizationClient.ts
-│       │   ├── audioProcessor.ts
-│       │   └── speakerRecognizer.ts
-│       └── tests/
-│           ├── unit/
-│           └── integration/
-│
-└── .specify/                 # Speckit 設定（既存）
+└── packages/
+    ├── core/                   # 共通型定義
+    │   └── src/
+    │       ├── types/
+    │       │   ├── diarizationSession.ts
+    │       │   ├── speakerMapping.ts
+    │       │   ├── utterance.ts
+    │       │   └── voiceProfile.ts
+    │       └── utils/
+    │           └── validation.ts
+    │
+    ├── speech-client/          # Azure Speech SDK ラッパー
+    │   └── src/
+    │       ├── audioProcessor.ts
+    │       ├── diarizationClient.ts
+    │       └── index.ts
+    │
+    ├── api/                    # API 型定義
+    └── cli/                    # CLI ツール（未使用）
 ```
 
-**Structure Decision**: Monorepo (npm workspaces) を採用。Constitution の「Monorepo & Library-First」原則に準拠。
+## Architecture Overview
 
-- **apps/web**: Nuxt 4 フロントエンド（ユーザーインターフェース）
-- **apps/api**: ExpressJS バックエンド（Azure Speech Service プロキシ）
-- **packages/core**: 共通型定義・ユーティリティ
-- **packages/speech-client**: Azure Speech SDK ラッパー
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         ブラウザ (Nuxt 4)                           │
+│  ┌──────────────┐  ┌─────────────────┐  ┌───────────────────┐      │
+│  │ ProfileList  │  │ SessionControl  │  │ TranscriptView    │      │
+│  └──────────────┘  └─────────────────┘  └───────────────────┘      │
+│         │                  │                     │                  │
+│  ┌──────┴──────────────────┴─────────────────────┴──────┐          │
+│  │                   Composables                          │          │
+│  │  useVoiceProfile  useDiarizationSession  useRealtime  │          │
+│  └────────────────────────────────────────────────────────┘          │
+│                               │                                      │
+│                        WebSocket                                     │
+└───────────────────────────────┼──────────────────────────────────────┘
+                                │
+                                v
+┌───────────────────────────────────────────────────────────────────────┐
+│                    ExpressJS API (port 3001)                          │
+│  ┌────────────────┐  ┌──────────────────┐  ┌───────────────────┐     │
+│  │  WebSocket     │  │  RealtimeService │  │  SpeechService    │     │
+│  │  Handler       │──│  (Enrollment +   │──│  (Azure SDK)      │     │
+│  │                │  │   Transcription) │  │                   │     │
+│  └────────────────┘  └──────────────────┘  └───────────────────┘     │
+│                                │                                      │
+│                    ┌───────────┴───────────┐                         │
+│                    │  DiarizationClient    │                         │
+│                    │  (or MockClient)      │                         │
+│                    └───────────────────────┘                         │
+└───────────────────────────────────────────────────────────────────────┘
+                                │
+                                v
+                    ┌───────────────────────┐
+                    │  Azure Speech Service │
+                    │  ConversationTranscr. │
+                    └───────────────────────┘
+```
 
-この構成により、フロントエンド・バックエンド・共通ライブラリが独立して開発・テスト可能。
+## Key Implementation Decisions
+
+### 1. エンロールメントベースのスピーカーマッピング
+
+Azure ConversationTranscriber が事前登録プロフィールとの照合を行わないため、以下の方式を採用:
+
+1. セッション開始時に各プロフィールの音声を順番に Azure に送信
+2. 音声送信中に Azure が検出した speakerId を収集
+3. 検出された speakerId をそのプロフィールにマッピング
+
+```typescript
+// RealtimeService.startEnrollment()
+for (const profile of this.pendingProfiles) {
+  this.currentEnrollmentProfile = profile;
+  this.currentEnrollmentSpeakers.clear();
+  
+  // プロフィール音声をチャンクで送信
+  for (const chunk of audioChunks) {
+    this.pushAudio(chunk);
+  }
+  
+  // 検出されたスピーカーをマッピング
+  for (const speakerId of this.currentEnrollmentSpeakers) {
+    this.mapSpeaker(speakerId, profile.profileId, profile.profileName);
+  }
+}
+```
+
+### 2. 手動マッピング UI
+
+エンロールメントで検出できなかった話者への対応:
+- 検出されたスピーカーIDをクリック可能なバッジで表示
+- クリックでプロフィール選択ダイアログを表示
+- 選択したプロフィールと speakerId を紐付け
+
+### 3. MockDiarizationClient
+
+開発・テスト環境で Azure 接続なしで動作:
+- 音声チャンク受信時にモック認識結果を生成
+- エンロールメント時は複数のスピーカーIDを検出
+- 定期的な speakerId ローテーションで複数話者をシミュレート
+
+### 4. エンロールメント発話の識別
+
+UI でエンロールメント発話とリアルタイム発話を区別:
+- `isEnrollment: true` フラグ
+- 紫色背景 + 🎤バッジで表示
+- `enrollmentProfileName` でプロフィール名を表示
+
+## Implementation Progress
+
+### Phase 0: Research ✅
+- Azure Speech Service API 調査完了
+- ConversationTranscriber の制限事項を発見・対応策を決定
+
+### Phase 1: Design & Contracts ✅
+- data-model.md 完成
+- contracts/api.yaml 完成
+- contracts/websocket.md 完成
+
+### Phase 2: Implementation ✅
+- 全79タスク完了
+- ユニットテスト・統合テスト実装済み
+
+### Post-Implementation Fixes ✅
+- API ベース URL 設定
+- ポート設定 (web: 3002, api: 3001)
+- WebSocket パス処理
+- 重複トランスクリプト問題
+- スピーカーマッピング UI
+- エンロールメント自動マッピング
+- エンロールメント発話の UI 区別
 
 ## Complexity Tracking
 
-> Constitution Check は全て PASS のため、違反の正当化は不要。
+| 追加した複雑さ | 理由 | 却下された代替案 |
+|---------------|------|-----------------|
+| エンロールメント処理 | Azure が声紋照合を行わないため | VoiceProfileClient 統合（不可能） |
+| 手動マッピング UI | エンロールメントで検出できない話者への対応 | なし（必須機能） |
+| MockDiarizationClient | 開発環境での Azure 接続不要化 | 毎回 Azure 接続（コスト・遅延） |
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| なし | - | - |
+## Files Changed Summary
 
----
+主要な実装ファイル:
+- `apps/api/src/services/realtimeService.ts` - エンロールメント・マッピング処理
+- `apps/api/src/services/mockSpeechService.ts` - モッククライアント
+- `apps/api/src/ws/handler.ts` - WebSocket ハンドラー
+- `apps/web/pages/session.vue` - セッション画面
+- `apps/web/composables/useRealtimeRecognition.ts` - リアルタイム認識
+- `apps/web/components/TranscriptView.vue` - 発話表示
+- `packages/speech-client/src/diarizationClient.ts` - Azure SDK ラッパー
 
-## Constitution Re-Check (Post-Design)
+## Next Steps (Future Enhancements)
 
-*Phase 1 設計完了後の再評価*
-
-### 設計成果物の確認
-
-| 成果物 | 状態 | ファイル |
-|--------|------|----------|
-| research.md | ✅ 完了 | [research.md](./research.md) |
-| data-model.md | ✅ 完了 | [data-model.md](./data-model.md) |
-| contracts/api.yaml | ✅ 完了 | [contracts/api.yaml](./contracts/api.yaml) |
-| contracts/websocket.md | ✅ 完了 | [contracts/websocket.md](./contracts/websocket.md) |
-| quickstart.md | ✅ 完了 | [quickstart.md](./quickstart.md) |
-
-### 設計と Constitution の整合性
-
-| 原則 | 設計での対応 | 状態 |
-|------|-------------|------|
-| I. TDD | Vitest + Playwright、モックは Azure SDK のみ | ✅ PASS |
-| II. Tech Stack | Nuxt 4, ExpressJS, TypeScript, VOLTA | ✅ PASS |
-| III. Coding Standards | Biome.js、strict TypeScript | ✅ PASS |
-| IV. Secret Management | 環境変数、.env.example 提供 | ✅ PASS |
-| V. Monorepo | apps/ + packages/ 構成 | ✅ PASS |
-
-### 依存関係の確認
-
-```
-packages/core (型定義)
-    ↑
-packages/speech-client (Azure SDK ラッパー)
-    ↑
-apps/api (バックエンド)
-    ↑
-apps/web (フロントエンド)
-```
-
-- 循環依存: なし ✅
-- 依存方向: 一方向 ✅
-
-**Constitution Re-Check Result**: ✅ ALL PASS - Phase 2 (tasks) に進行可能
+1. **Azure 実環境テスト** - 実際の Azure Speech Service での動作確認
+2. **エンロールメント進捗表示** - プログレスバーやステップ表示
+3. **セッション履歴保存** - IndexedDB や Azure Blob Storage への永続化
+4. **話者認識精度向上** - より長いプロフィール音声での学習
+5. **多言語対応** - 日本語以外の言語サポート

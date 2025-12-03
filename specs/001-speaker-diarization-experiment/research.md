@@ -1,12 +1,53 @@
 # Research: 話者分離・話者認識実験アプリケーション
 
 **Date**: 2025-12-01  
+**Updated**: 2025-12-03  
 **Feature**: 001-speaker-diarization-experiment  
-**Status**: Complete
+**Status**: Complete (with Implementation Notes)
 
 ## 概要
 
 Azure Speech Service の話者分離（Diarization）機能を使用して、リアルタイム話者認識を実現するための技術調査結果。
+
+---
+
+## ⚠️ 重要な発見事項（実装時に判明）
+
+### Azure ConversationTranscriber の制限
+
+**発見日**: 2025-12-03（実装フェーズ中）
+
+Azure の `ConversationTranscriber` は**話者分離（Diarization）のみ**を行い、**話者認識（Speaker Identification）は行わない**ことが判明した。
+
+**具体的な制限**:
+1. speakerId は `Guest-1`, `Guest-2` 形式で動的に割り当てられる
+2. セッションごとに speakerId はリセットされる
+3. 事前登録した音声プロフィールとの照合（Voice Profile matching）は**行われない**
+4. VoiceProfileClient は別サービスであり、ConversationTranscriber との連携はない
+
+**当初の想定**:
+> 音声プロフィールを Azure に送信し、speakerId を取得。リアルタイム認識時にその speakerId で話者を識別
+
+**実際の動作**:
+> Azure は音声の特徴から話者を区別するが、事前登録した声紋との照合は行わない。Guest-1 = プロフィールA という紐付けは**できない**
+
+### 採用した回避策
+
+**エンロールメントベースの自動マッピング**:
+1. セッション開始時に各プロフィールの音声を順番に Azure に送信
+2. その音声再生中に Azure が検出した speakerId を収集
+3. 検出された speakerId をそのプロフィールにマッピング
+4. 以降のリアルタイム認識ではマッピングを使用して話者名を表示
+
+```
+[Profile A Audio] → Azure detects "Guest-1" → Map Guest-1 = "田中さん"
+[Profile B Audio] → Azure detects "Guest-2" → Map Guest-2 = "鈴木さん"
+[Real-time mic]   → Guest-1 speaks → Display "田中さん"
+```
+
+**マニュアルマッピング**:
+- ユーザーが UI から Azure speakerId とプロフィールを手動で紐付け可能
+- エンロールメントで検出できなかった話者への対応
 
 ---
 
@@ -22,13 +63,16 @@ Azure Speech Service の話者分離（Diarization）機能を使用して、リ
 - `speakerId` を含む認識結果を取得可能
 - JavaScript/TypeScript SDK でフルサポート
 
+**⚠️ 注意**: VoiceProfileClient との連携は行われない
+
 **Alternatives Considered**:
 
 | 選択肢 | 却下理由 |
 |--------|----------|
 | SpeechRecognizer | 話者分離機能なし（音声認識のみ） |
 | Fast Transcription API | REST API のみ、リアルタイム非対応 |
-| Speaker Verification API | 事前登録した声紋との照合用、目的が異なる |
+| Speaker Verification API | 1:1 照合用、多話者セッションに不向き |
+| Speaker Identification API | Batch 処理のみ、リアルタイム非対応 |
 
 ### SDK 構成
 
@@ -53,6 +97,7 @@ const audioConfig = AudioConfig.fromWavFileInput(audioBuffer);
 const transcriber = new ConversationTranscriber(speechConfig, audioConfig);
 
 transcriber.transcribed = (s, e) => {
+  // speakerId は動的に割り当てられる (Guest-1, Guest-2, etc.)
   console.log(`Text: ${e.result.text}, Speaker: ${e.result.speakerId}`);
 };
 
@@ -173,7 +218,7 @@ interface StoredVoiceProfile {
 
 ### Decision: バックエンドプロキシ経由で Azure 接続
 
-**選択**: ExpressJS バックエンドが Azure Speech Service に接続、フロントエンドは API 経由
+**選択**: ExpressJS バックエンドが Azure Speech Service に接続、フロントエンドは WebSocket 経由
 
 **Rationale**:
 - Azure API キーをクライアントに公開しない
@@ -185,14 +230,21 @@ interface StoredVoiceProfile {
 ```
 [ブラウザ]
     |
-    | WebSocket / REST API
+    | WebSocket (ws://localhost:3001/ws)
     v
-[ExpressJS API]  ← Azure API Key (環境変数)
+[ExpressJS API + WebSocket Server]  ← Azure API Key (環境変数)
     |
     | microsoft-cognitiveservices-speech-sdk
     v
 [Azure Speech Service]
 ```
+
+**ポート構成（実装時の決定）**:
+
+| サービス | ポート |
+|----------|--------|
+| Nuxt フロントエンド | 3002 |
+| Express API + WebSocket | 3001 |
 
 **Alternatives Considered**:
 
@@ -225,48 +277,64 @@ interface StoredVoiceProfile {
 
 ```typescript
 // 古典派 TDD に従い、モックは Azure SDK 接続部分のみ
-vi.mock("microsoft-cognitiveservices-speech-sdk", () => ({
-  SpeechConfig: {
-    fromEndpoint: vi.fn().mockReturnValue({})
-  },
-  ConversationTranscriber: vi.fn().mockImplementation(() => ({
-    startTranscribingAsync: vi.fn(),
-    stopTranscribingAsync: vi.fn(),
-    transcribed: null
-  }))
-}));
+// MockDiarizationClient を実装し、開発環境で使用
+export class MockDiarizationClient implements DiarizationClient {
+  private speakerIdCounter = 0;
+  
+  async startTranscription(): Promise<void> {
+    this.isTranscribing = true;
+  }
+  
+  pushAudioChunk(chunk: Uint8Array): void {
+    // 音声チャンクを受信時にトランスクリプトを生成
+    if (this.isTranscribing && this.audioBufferSize >= THRESHOLD) {
+      this.emit('transcribed', mockResult);
+    }
+  }
+}
 ```
 
 ---
 
 ## 7. SpeakerId マッピング戦略
 
-### Decision: セッション内メモリマップ
+### Decision: エンロールメント + 手動マッピング
 
-**選択**: フロントエンドの Vue リアクティブ状態でマッピング保持
+**選択**: 
+1. エンロールメント時に自動マッピング
+2. UI から手動マッピング可能
 
-**Rationale**:
-- セッション中のみ有効で十分
-- Azure が割り当てる speakerId は `Guest-1`, `Guest-2` 形式
-- プロフィール登録順序と speakerId を紐付け
-
-**実装**:
+**実装詳細**:
 
 ```typescript
-interface SpeakerMapping {
-  speakerId: string;      // Azure が返す ID (e.g., "Guest-1")
-  profileName: string;    // ユーザーが設定した名前
-  profileId: string;      // 内部 ID
-}
+// RealtimeService でエンロールメント中のスピーカーを追跡
+private isEnrolling = false;
+private currentEnrollmentProfile: ProfileRegistration | null = null;
+private currentEnrollmentSpeakers: Set<string> = new Set();
 
-// セッション状態
-const speakerMappings = ref<Map<string, SpeakerMapping>>(new Map());
+async startEnrollment(): Promise<void> {
+  for (const profile of this.pendingProfiles) {
+    this.currentEnrollmentProfile = profile;
+    this.currentEnrollmentSpeakers.clear();
+    
+    // プロフィール音声を送信
+    for (const chunk of audioChunks) {
+      this.pushAudio(chunk);
+    }
+    
+    // 検出されたスピーカーをマッピング
+    for (const speakerId of this.currentEnrollmentSpeakers) {
+      this.mapSpeaker(speakerId, profile.profileId, profile.profileName);
+    }
+  }
+}
 ```
 
 **Azure speakerId の動作**:
 - `Guest-1`, `Guest-2`, ... の形式で自動割り当て
 - 同一セッション内で一貫性あり
 - セッション終了でリセット
+- **事前登録した声紋との照合は行われない**
 
 ---
 
@@ -362,8 +430,18 @@ PORT=3001
 | リアルタイム入力 | PushStream + Web Audio API |
 | 音声形式 | WAV (16kHz, 16-bit, Mono) |
 | ストレージ | sessionStorage + Base64 |
-| アーキテクチャ | バックエンドプロキシ経由 |
+| アーキテクチャ | バックエンドプロキシ経由 (WebSocket) |
 | テスト | Vitest + Playwright |
-| モック戦略 | Azure SDK 接続部分のみ |
+| モック戦略 | MockDiarizationClient |
+| 話者マッピング | エンロールメント + 手動マッピング |
 
-すべての NEEDS CLARIFICATION が解決され、Phase 1 に進行可能。
+### 実装時の主な変更点
+
+| 当初の想定 | 実際の実装 |
+|----------|----------|
+| Azure が声紋を照合 | Azure は話者分離のみ |
+| speakerId が事前に紐付く | speakerId は動的割り当て |
+| REST API でプロフィール登録 | エンロールメントで音声送信し自動マッピング |
+| - | 手動マッピング UI を追加 |
+
+すべての NEEDS CLARIFICATION が解決され、実装完了。

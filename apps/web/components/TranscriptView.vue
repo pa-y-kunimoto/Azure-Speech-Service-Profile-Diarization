@@ -187,6 +187,12 @@ function getEndOffset(utterance: Utterance): number {
 						{{ utterance.speakerName }}
 					</button>
 					<span
+						class="text-xs text-gray-400 font-mono"
+						:title="`Azure Speaker ID: ${utterance.azureSpeakerId || utterance.speakerId || 'Unknown'}`"
+					>
+						({{ utterance.azureSpeakerId || utterance.speakerId || 'Unknown' }})
+					</span>
+					<span
 						v-if="utterance.isEnrollment"
 						class="px-2 py-0.5 rounded text-xs font-medium bg-purple-200 text-purple-800"
 					>
