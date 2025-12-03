@@ -188,6 +188,12 @@ class MockDiarizationClient {
 	private intervalId: NodeJS.Timeout | null = null;
 	private phraseIndex = 0;
 	private currentOffset = 0;
+	
+	// Audio buffer for enrollment simulation
+	private audioBuffer: Uint8Array[] = [];
+	private audioBufferSize = 0;
+	private lastEmitTime = 0;
+	private enrollmentSpeakerCounter = 0;
 
 	private mockPhrases = [
 		'こんにちは、本日はお集まりいただきありがとうございます。',
@@ -202,6 +208,12 @@ class MockDiarizationClient {
 		'来週の金曜日までに完了できると思います。',
 	];
 
+	private enrollmentPhrases = [
+		'これはプロフィール用の音声です。',
+		'話者認識のためのサンプル音声を録音しています。',
+		'私の声を認識してください。',
+	];
+
 	get isTranscribing(): boolean {
 		return this._isTranscribing;
 	}
@@ -213,6 +225,12 @@ class MockDiarizationClient {
 	}
 
 	async startTranscription(): Promise<void> {
+		// Prevent double start
+		if (this._isTranscribing) {
+			console.log('MockDiarizationClient: Already transcribing, ignoring start request');
+			return;
+		}
+
 		this._isTranscribing = true;
 		this.phraseIndex = 0;
 		this.currentOffset = 0;
@@ -274,11 +292,71 @@ class MockDiarizationClient {
 			clearInterval(this.intervalId);
 			this.intervalId = null;
 		}
+		// Reset audio buffer
+		this.audioBuffer = [];
+		this.audioBufferSize = 0;
 		this.emit('sessionStopped', {});
 	}
 
-	pushAudioChunk(_chunk: Uint8Array): void {
-		// Mock: audio is not actually processed
+	pushAudioChunk(chunk: Uint8Array): void {
+		if (!this._isTranscribing) return;
+
+		// Accumulate audio data
+		this.audioBuffer.push(chunk);
+		this.audioBufferSize += chunk.length;
+
+		// Generate transcription when we have enough audio data
+		// 16kHz * 2 bytes * 2 seconds = 64000 bytes for ~2 seconds of audio
+		const CHUNK_THRESHOLD = 32000; // ~1 second of audio
+		const now = Date.now();
+		const MIN_EMIT_INTERVAL = 800; // Minimum 800ms between emissions
+
+		if (this.audioBufferSize >= CHUNK_THRESHOLD && (now - this.lastEmitTime) >= MIN_EMIT_INTERVAL) {
+			// Determine speaker ID - use a consistent ID for the "current" enrollment
+			this.enrollmentSpeakerCounter++;
+			const speakerId = `Guest-${((this.enrollmentSpeakerCounter - 1) % 3) + 1}`;
+			
+			// Pick a phrase from enrollment phrases
+			const phraseIndex = this.enrollmentSpeakerCounter % this.enrollmentPhrases.length;
+			const phrase = this.enrollmentPhrases[phraseIndex] || 'サンプル音声です。';
+			const duration = 1000 + Math.random() * 1500;
+
+			// Emit speaker detected first
+			this.emit('speakerDetected', speakerId);
+
+			// Emit interim result
+			const interimResult: MockTranscriptionResult = {
+				result: {
+					text: `${phrase.substring(0, Math.floor(phrase.length / 2))}...`,
+					speakerId,
+					offset: this.currentOffset,
+					duration: duration / 2,
+					reason: 1,
+				},
+			};
+			this.emit('transcribing', interimResult);
+
+			// Emit final result after a short delay
+			setTimeout(() => {
+				const finalResult: MockTranscriptionResult = {
+					result: {
+						text: phrase,
+						speakerId,
+						offset: this.currentOffset,
+						duration,
+						reason: 1,
+					},
+				};
+				this.emit('transcribed', finalResult);
+			}, 200);
+
+			this.currentOffset += duration + 500;
+			this.lastEmitTime = now;
+			
+			// Reset buffer
+			this.audioBuffer = [];
+			this.audioBufferSize = 0;
+		}
 	}
 
 	validateAudioFormat(format: { sampleRate: number; bitsPerSample: number; channels: number }): boolean {

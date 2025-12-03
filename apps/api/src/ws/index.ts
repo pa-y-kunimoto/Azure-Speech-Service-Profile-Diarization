@@ -27,14 +27,27 @@ export interface WebSocketServerConfig {
 export function setupWebSocketServer(server: Server, config: WebSocketServerConfig): WebSocketServer {
 	const wss = new WebSocketServer({
 		server,
-		path: '/ws/session',
+		// Don't use path option - handle path parsing manually for dynamic sessionId
 	});
 
 	wss.on('connection', (ws: WebSocket, request) => {
 		// Extract sessionId from URL: /ws/session/{sessionId}
 		const url = new URL(request.url || '', `http://${request.headers.host}`);
 		const pathParts = url.pathname.split('/');
-		const sessionId = pathParts[pathParts.length - 1];
+		
+		// Validate path format: /ws/session/{sessionId}
+		if (pathParts.length < 4 || pathParts[1] !== 'ws' || pathParts[2] !== 'session') {
+			ws.send(JSON.stringify({
+				type: 'error',
+				code: 'INVALID_PATH',
+				message: 'Invalid WebSocket path. Use /ws/session/{sessionId}',
+				recoverable: false,
+			}));
+			ws.close();
+			return;
+		}
+		
+		const sessionId = pathParts[3];
 
 		if (!sessionId || sessionId === 'session') {
 			ws.send(JSON.stringify({
@@ -109,13 +122,37 @@ export function setupWebSocketServer(server: Server, config: WebSocketServerConf
 				});
 			});
 
+			// Handle speaker mapping events
+			service.on('speakerMapped', (data: unknown) => {
+				const mapping = data as { speakerId: string; profileId: string; profileName: string };
+				sendToClient({
+					type: 'speaker_registered',
+					mapping: {
+						speakerId: mapping.speakerId,
+						profileId: mapping.profileId,
+						profileName: mapping.profileName,
+						isRegistered: true,
+					},
+				});
+			});
+
+			// Handle enrollment complete
+			service.on('enrollmentComplete', (data: unknown) => {
+				const result = data as { enrolled: number; mapped: number };
+				sendToClient({
+					type: 'status',
+					status: 'enrollment_complete',
+					message: `${result.enrolled}件中${result.mapped}件のプロフィールをマッピングしました`,
+				});
+			});
+
 			// Set up audio forwarding
 			handler.setTranscriptionCallback((chunk: Buffer) => {
 				service.pushAudio(chunk);
 			});
 
 			// Set up control actions
-			handler.setControlCallback(async (action: string) => {
+			handler.setControlCallback(async (action: string, data?: unknown) => {
 				switch (action) {
 					case 'start':
 						await service.start();
@@ -123,6 +160,35 @@ export function setupWebSocketServer(server: Server, config: WebSocketServerConf
 					case 'stop':
 						await service.stop();
 						break;
+					case 'enroll': {
+						// Register profiles and start enrollment
+						const profiles = data as Array<{
+							profileId: string;
+							profileName: string;
+							audioBase64: string;
+						}>;
+						if (profiles) {
+							for (const profile of profiles) {
+								service.registerProfile(profile);
+							}
+							// Start transcription first, then enroll
+							await service.start();
+							await service.startEnrollment();
+						}
+						break;
+					}
+					case 'mapSpeaker': {
+						// Manual speaker mapping
+						const mapping = data as {
+							speakerId: string;
+							profileId: string;
+							displayName: string;
+						};
+						if (mapping) {
+							service.mapSpeaker(mapping.speakerId, mapping.profileId, mapping.displayName);
+						}
+						break;
+					}
 				}
 			});
 

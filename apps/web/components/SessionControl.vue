@@ -11,8 +11,22 @@ import { ref, computed } from 'vue';
 import { useDiarizationSession } from '../composables/useDiarizationSession';
 import { useVoiceProfile } from '../composables/useVoiceProfile';
 
+// Profile data for enrollment
+interface EnrollmentProfile {
+	profileId: string;
+	profileName: string;
+	audioBase64: string;
+}
+
+// Emits
+const emit = defineEmits<{
+	'session-started': [sessionId: string, profiles: EnrollmentProfile[]];
+	'session-ended': [];
+}>();
+
 // Composables
 const {
+	sessionId,
 	createSession,
 	registerAllProfiles,
 	endSession,
@@ -80,10 +94,21 @@ async function handleStartSession() {
 		}));
 
 	await registerAllProfiles(profilesToRegister);
+
+	// Emit session-started event with session ID and profiles for enrollment
+	if (sessionId.value) {
+		const enrollmentProfiles: EnrollmentProfile[] = profilesToRegister.map((p) => ({
+			profileId: p.id,
+			profileName: p.name,
+			audioBase64: p.audioBase64,
+		}));
+		emit('session-started', sessionId.value, enrollmentProfiles);
+	}
 }
 
 async function handleEndSession() {
 	await endSession();
+	emit('session-ended');
 }
 
 function handleRetry() {
@@ -224,26 +249,28 @@ function handleRetry() {
 								class="border-t"
 							>
 								<td class="px-4 py-3">{{ mapping.displayName }}</td>
-								<td class="px-4 py-3 font-mono text-sm">{{ mapping.azureSpeakerId }}</td>
-								<td class="px-4 py-3 text-center">
-									<span
-										data-testid="registration-status"
-										class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs"
-										:class="{
-											'bg-green-100 text-green-700': mapping.status === 'completed',
-											'bg-yellow-100 text-yellow-700': mapping.status !== 'completed',
-										}"
-									>
-										<span
-											class="w-2 h-2 rounded-full"
-											:class="{
-												'bg-green-500': mapping.status === 'completed',
-												'bg-yellow-500': mapping.status !== 'completed',
-											}"
-										></span>
-										{{ mapping.status === 'completed' ? '登録済み' : '登録中' }}
-									</span>
+								<td class="px-4 py-3 font-mono text-sm text-gray-500">
+									{{ mapping.azureSpeakerId || '— 認識時に割当' }}
 								</td>
+							<td class="px-4 py-3 text-center">
+								<span
+									data-testid="registration-status"
+									class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs"
+									:class="{
+										'bg-green-100 text-green-700': mapping.azureSpeakerId,
+										'bg-gray-100 text-gray-600': !mapping.azureSpeakerId,
+									}"
+								>
+									<span
+										class="w-2 h-2 rounded-full"
+										:class="{
+											'bg-green-500': mapping.azureSpeakerId,
+											'bg-gray-400': !mapping.azureSpeakerId,
+										}"
+									></span>
+									{{ mapping.azureSpeakerId ? 'マッピング済み' : '未割当' }}
+								</span>
+							</td>
 							</tr>
 						</tbody>
 					</table>

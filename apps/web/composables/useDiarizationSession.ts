@@ -10,7 +10,7 @@
  */
 
 import { ref, computed } from 'vue';
-import type { SpeakerMapping } from '@speaker-diarization/core';
+import type { SpeakerMapping, RegistrationStatus } from '@speaker-diarization/core';
 import { useApiFetch } from './useApiFetch';
 
 // Session status type matching API schema
@@ -37,9 +37,10 @@ interface SessionResponse {
 }
 
 interface SpeakerMappingResponse {
-	speakerId: string;
+	speakerId?: string;
 	profileId: string;
 	profileName: string;
+	status?: string;
 }
 
 interface ProfileToRegister {
@@ -132,8 +133,8 @@ export function useDiarizationSession() {
 				{
 					voiceProfileId: response.profileId,
 					displayName: response.profileName,
-					azureSpeakerId: response.speakerId,
-                    status: 'completed',
+					azureSpeakerId: response.speakerId ?? null, // null until manually mapped
+					status: (response.status || 'pending') as RegistrationStatus,
 					sessionId: sessionId.value,
 				},
 			];

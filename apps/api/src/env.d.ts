@@ -13,7 +13,7 @@ declare global {
       SPEECH_REGION?: string;
 
       /** Server port number */
-      PORT?: string;
+      API_PORT?: string;
 
       /** Node environment: 'development' | 'production' | 'test' */
       NODE_ENV?: "development" | "production" | "test";

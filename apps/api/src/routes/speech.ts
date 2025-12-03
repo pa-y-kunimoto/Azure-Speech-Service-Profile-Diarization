@@ -87,9 +87,10 @@ speechRouter.post(
 			);
 
 			res.json({
-				speakerId: mapping.azureSpeakerId,
+				speakerId: mapping.azureSpeakerId || null,
 				profileId: mapping.voiceProfileId,
 				profileName: mapping.displayName,
+				status: mapping.status,
 				isRegistered: mapping.status === 'completed',
 			});
 		} catch (error) {

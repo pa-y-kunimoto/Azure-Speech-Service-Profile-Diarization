@@ -20,6 +20,10 @@ export interface Utterance {
 	offsetMs: number;
 	confidence: number;
 	isFinal: boolean;
+	/** True if this utterance was extracted from an enrollment audio profile */
+	isEnrollment?: boolean;
+	/** Profile name if this is an enrollment utterance */
+	enrollmentProfileName?: string;
 }
 
 /**
@@ -219,6 +223,28 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 			await connect();
 		}
 
+		// Start microphone capture
+		await startMicrophoneCapture();
+
+		// Send start command to begin transcription
+		sendControlMessage('start');
+	}
+
+	/**
+	 * Start microphone capture only (without sending start command)
+	 * Use this after enrollment which already starts transcription
+	 */
+	async function startMicrophoneCapture(): Promise<void> {
+		if (!socket || socket.readyState !== WebSocket.OPEN) {
+			await connect();
+		}
+
+		// Skip if already capturing
+		if (mediaStream) {
+			console.log('Microphone already capturing');
+			return;
+		}
+
 		// Request microphone access
 		try {
 			mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -258,9 +284,6 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 
 		source.connect(scriptProcessor);
 		scriptProcessor.connect(audioContext.destination);
-
-		// Send start command
-		sendControlMessage('start');
 	}
 
 	/**
@@ -286,10 +309,48 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 	}
 
 	/**
+	 * Profile data for enrollment
+	 */
+	interface EnrollmentProfile {
+		profileId: string;
+		profileName: string;
+		audioBase64: string;
+	}
+
+	/**
+	 * Enroll profiles - sends profile audio to learn speakers before real-time recognition
+	 * This should be called after connect() and before start()
+	 */
+	async function enrollProfiles(profiles: EnrollmentProfile[]): Promise<void> {
+		if (!socket || socket.readyState !== WebSocket.OPEN) {
+			await connect();
+		}
+
+		if (!profiles || profiles.length === 0) {
+			console.warn('No profiles to enroll');
+			return;
+		}
+
+		console.log(`Enrolling ${profiles.length} profile(s)`);
+		
+		socket?.send(
+			JSON.stringify({
+				type: 'control',
+				action: 'enroll',
+				profiles: profiles.map(p => ({
+					profileId: p.profileId,
+					profileName: p.profileName,
+					audioBase64: p.audioBase64,
+				})),
+			})
+		);
+	}
+
+	/**
 	 * Map a detected speaker to a profile
 	 */
 	function mapSpeaker(speakerId: string, profileId: string, displayName: string): void {
-		// This would typically be an API call
+		// Update local state
 		speakerMappings.value = [
 			...speakerMappings.value.filter((m) => m.speakerId !== speakerId),
 			{
@@ -299,6 +360,19 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 				isRegistered: true,
 			},
 		];
+
+		// Send mapping to backend via WebSocket
+		if (socket && socket.readyState === WebSocket.OPEN) {
+			socket.send(
+				JSON.stringify({
+					type: 'control',
+					action: 'mapSpeaker',
+					speakerId,
+					profileId,
+					displayName,
+				})
+			);
+		}
 	}
 
 	/**
@@ -524,9 +598,11 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		connect,
 		disconnect,
 		start,
+		startMicrophoneCapture,
 		stop,
 		pause,
 		resume,
+		enrollProfiles,
 		mapSpeaker,
 		clearUtterances,
 	};

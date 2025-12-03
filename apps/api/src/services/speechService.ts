@@ -99,28 +99,18 @@ async function registerProfile(
 		throw new Error('Session not found');
 	}
 
-	const profileIndex = session.speakerMappings.length;
-	let azureSpeakerId: string;
-	let registeredAt: string;
+	const registeredAt = new Date().toISOString();
 
-	if (isMockMode()) {
-		// Use mock registration
-		const result = await mockRegisterProfile(sessionId, profileIndex);
-		azureSpeakerId = result.azureSpeakerId;
-		registeredAt = result.registeredAt;
-	} else {
-		// TODO: Real Azure registration
-		// This would use VoiceProfileClient to create and enroll a profile
-		azureSpeakerId = `azure-speaker-${profileIndex}`;
-		registeredAt = new Date().toISOString();
-	}
-
+	// Note: We don't assign azureSpeakerId here.
+	// Azure ConversationTranscriber will assign speaker IDs (Guest-1, Guest-2, etc.)
+	// dynamically during transcription. Users will need to manually map these
+	// detected speakers to their registered profiles.
 	const mapping: SpeakerMapping = {
 		sessionId,
 		voiceProfileId: profileId,
 		displayName: profileName,
-		azureSpeakerId,
-        status: 'completed',
+		azureSpeakerId: undefined, // Will be assigned when user maps a detected speaker
+		status: 'pending', // Waiting for speaker detection and manual mapping
 		registeredAt,
 	};
 

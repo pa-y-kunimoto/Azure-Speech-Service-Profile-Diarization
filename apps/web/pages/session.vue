@@ -81,17 +81,66 @@
         </span>
       </div>
 
-      <!-- Detected Speakers -->
+      <!-- Detected Speakers with Manual Mapping -->
       <div v-if="recognition.detectedSpeakers.value.length > 0" class="mb-4">
-        <h4 class="text-sm font-medium text-gray-700 mb-2">検出された話者</h4>
+        <h4 class="text-sm font-medium text-gray-700 mb-2">検出された話者（クリックでプロフィールを割り当て）</h4>
         <div class="flex flex-wrap gap-2">
-          <span
+          <button
             v-for="speakerId in recognition.detectedSpeakers.value"
             :key="speakerId"
-            class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm"
+            type="button"
+            class="px-3 py-1 rounded text-sm font-medium transition-colors"
+            :class="getMappedProfile(speakerId) 
+              ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+              : 'bg-blue-100 text-blue-800 hover:bg-blue-200'"
+            @click="openSpeakerMappingDialog(speakerId)"
           >
-            {{ speakerId }}
-          </span>
+            {{ getMappedProfile(speakerId) || speakerId }}
+            <span v-if="getMappedProfile(speakerId)" class="ml-1 text-green-600">✓</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Speaker Mapping Dialog -->
+      <div
+        v-if="showMappingDialog"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        @click.self="closeMappingDialog"
+      >
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+          <h3 class="text-lg font-semibold mb-4">話者をプロフィールに割り当て</h3>
+          <p class="text-sm text-gray-600 mb-4">
+            「{{ mappingDialogSpeakerId }}」をどのプロフィールに割り当てますか？
+          </p>
+          <div class="space-y-2 mb-4">
+            <button
+              v-for="profile in availableProfiles"
+              :key="profile.id"
+              type="button"
+              class="w-full px-4 py-2 text-left rounded-lg border hover:bg-gray-50 transition-colors"
+              :class="{ 'border-blue-500 bg-blue-50': selectedMappingProfile === profile.id }"
+              @click="selectedMappingProfile = profile.id"
+            >
+              {{ profile.name }}
+            </button>
+          </div>
+          <div class="flex gap-2 justify-end">
+            <button
+              type="button"
+              class="px-4 py-2 text-gray-600 hover:text-gray-800"
+              @click="closeMappingDialog"
+            >
+              キャンセル
+            </button>
+            <button
+              type="button"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              :disabled="!selectedMappingProfile"
+              @click="confirmSpeakerMapping"
+            >
+              割り当て
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -102,9 +151,9 @@
         リアルタイム発話
       </h3>
       <TranscriptView
-        :utterances="recognition.utterances.value"
+        :utterances="mappedUtterances"
         :interim-text="recognition.interimText.value"
-        :interim-speaker="recognition.interimSpeaker.value"
+        :interim-speaker="mappedInterimSpeaker"
         :is-active="recognition.isActive.value"
         @speaker-click="handleSpeakerClick"
       />
@@ -165,15 +214,25 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue';
 import { useRealtimeRecognition } from '~/composables/useRealtimeRecognition';
+import { useVoiceProfile } from '~/composables/useVoiceProfile';
 import type { SpeakerMapping } from '@speaker-diarization/core';
 
 // Session state
 const sessionId = ref<string | null>(null);
 
+// Voice profiles for manual mapping
+const { profiles: availableProfiles } = useVoiceProfile();
+
 // Initialize recognition composable when session starts
 let recognition = useRealtimeRecognition({
   sessionId: 'placeholder'
 });
+
+// Manual speaker mapping state
+const showMappingDialog = ref(false);
+const mappingDialogSpeakerId = ref('');
+const selectedMappingProfile = ref<string | null>(null);
+const manualSpeakerMappings = ref<Map<string, { profileId: string; profileName: string }>>(new Map());
 
 // Status display configuration
 const statusLabels: Record<string, string> = {
@@ -197,13 +256,26 @@ const statusColors: Record<string, string> = {
 };
 
 /**
+ * Profile data for enrollment
+ */
+interface EnrollmentProfile {
+  profileId: string;
+  profileName: string;
+  audioBase64: string;
+}
+
+// Enrollment profiles received from SessionControl
+const enrollmentProfiles = ref<EnrollmentProfile[]>([]);
+
+/**
  * Handle session started event from SessionControl
  */
-function handleSessionStarted(id: string) {
+function handleSessionStarted(id: string, profiles: EnrollmentProfile[]) {
   sessionId.value = id;
   sessionStartTime.value = Date.now();
   showResults.value = false;
   selectedSpeaker.value = null;
+  enrollmentProfiles.value = profiles;
   
   // Reinitialize recognition with correct session ID
   recognition = useRealtimeRecognition({
@@ -228,10 +300,23 @@ function handleSessionEnded() {
 
 /**
  * Start real-time recognition
+ * First enrolls profiles to learn speakers, then starts mic capture
  */
 async function startRecognition() {
   try {
-    await recognition.start();
+    // If we have enrollment profiles, enroll them first
+    // Enrollment also starts transcription, so we don't need to call start() separately
+    if (enrollmentProfiles.value.length > 0) {
+      console.log('Enrolling profiles before starting recognition...');
+      await recognition.enrollProfiles(enrollmentProfiles.value);
+      // Clear enrollment profiles after successful enrollment
+      enrollmentProfiles.value = [];
+      // Start microphone capture only (transcription is already started by enroll)
+      await recognition.startMicrophoneCapture();
+    } else {
+      // No profiles to enroll, start normally
+      await recognition.start();
+    }
   } catch (error) {
     console.error('Failed to start recognition:', error);
   }
@@ -269,9 +354,35 @@ const sessionDurationSeconds = computed(() => {
   return Math.floor((now - sessionStartTime.value) / 1000);
 });
 
+// Utterances with manual speaker mappings applied
+const mappedUtterances = computed(() => {
+  return recognition.utterances.value.map(utterance => {
+    const mapping = manualSpeakerMappings.value.get(utterance.speakerId);
+    if (mapping) {
+      return {
+        ...utterance,
+        speakerName: mapping.profileName,
+      };
+    }
+    return utterance;
+  });
+});
+
+// Interim speaker with manual mapping applied
+const mappedInterimSpeaker = computed(() => {
+  const interimSpeakerId = recognition.interimSpeaker.value;
+  if (interimSpeakerId) {
+    const mapping = manualSpeakerMappings.value.get(interimSpeakerId);
+    if (mapping) {
+      return mapping.profileName;
+    }
+  }
+  return recognition.interimSpeaker.value;
+});
+
 // Transform utterances to match SpeakerTimeline's expected type
 const transformedUtterances = computed(() => {
-  return recognition.utterances.value.map(utterance => ({
+  return mappedUtterances.value.map(utterance => ({
     ...utterance,
     sessionId: sessionId.value || '',
     azureSpeakerId: utterance.speakerId,
@@ -304,6 +415,58 @@ function handleTimelineSpeakerSelect(speakerId: string) {
 function handleUtteranceClick(utterance: { id: string; text: string; speakerName: string }) {
   console.log('Utterance clicked:', utterance);
   // Could scroll to or highlight the utterance
+}
+
+/**
+ * Get the mapped profile name for a speaker ID
+ */
+function getMappedProfile(speakerId: string): string | null {
+  const mapping = manualSpeakerMappings.value.get(speakerId);
+  return mapping?.profileName || null;
+}
+
+/**
+ * Open the speaker mapping dialog
+ */
+function openSpeakerMappingDialog(speakerId: string) {
+  mappingDialogSpeakerId.value = speakerId;
+  selectedMappingProfile.value = null;
+  showMappingDialog.value = true;
+}
+
+/**
+ * Close the speaker mapping dialog
+ */
+function closeMappingDialog() {
+  showMappingDialog.value = false;
+  mappingDialogSpeakerId.value = '';
+  selectedMappingProfile.value = null;
+}
+
+/**
+ * Confirm the speaker mapping
+ */
+function confirmSpeakerMapping() {
+  if (!selectedMappingProfile.value || !mappingDialogSpeakerId.value) {
+    return;
+  }
+  
+  // Find the selected profile
+  const profile = availableProfiles.value.find(p => p.id === selectedMappingProfile.value);
+  if (!profile) {
+    return;
+  }
+  
+  // Save the mapping locally
+  manualSpeakerMappings.value.set(mappingDialogSpeakerId.value, {
+    profileId: profile.id,
+    profileName: profile.name,
+  });
+  
+  // Call the recognition mapSpeaker function to update the backend
+  recognition.mapSpeaker(mappingDialogSpeakerId.value, profile.id, profile.name);
+  
+  closeMappingDialog();
 }
 
 // Cleanup on unmount

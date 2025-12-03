@@ -16,7 +16,16 @@ interface AudioMessage {
 
 interface ControlMessage {
 	type: 'control';
-	action: 'start' | 'stop' | 'pause' | 'resume';
+	action: 'start' | 'stop' | 'pause' | 'resume' | 'enroll' | 'mapSpeaker';
+	profiles?: Array<{
+		profileId: string;
+		profileName: string;
+		audioBase64: string;
+	}>;
+	// For mapSpeaker action
+	speakerId?: string;
+	profileId?: string;
+	displayName?: string;
 }
 
 type ClientMessage = AudioMessage | ControlMessage;
@@ -69,7 +78,7 @@ type ServerMessage =
 
 type SendCallback = (message: ServerMessage) => void;
 type TranscriptionCallback = (chunk: Buffer) => void;
-type ControlCallback = (action: string) => Promise<void>;
+type ControlCallback = (action: string, data?: unknown) => Promise<void>;
 
 /**
  * WebSocket message handler for a single session
@@ -288,6 +297,81 @@ export class WebSocketHandler {
 					status: 'active',
 					message: '認識を再開しました',
 				});
+				break;
+
+			case 'enroll':
+				// Enrollment: register profiles and start learning speakers
+				if (!message.profiles || message.profiles.length === 0) {
+					this.sendCallback({
+						type: 'error',
+						code: 'INVALID_MESSAGE',
+						message: 'Profiles are required for enrollment',
+						recoverable: true,
+					});
+					return;
+				}
+				try {
+					this.sendCallback({
+						type: 'status',
+						status: 'enrolling',
+						message: `${message.profiles.length}件のプロフィールを学習中...`,
+					});
+					if (this.controlCallback) {
+						await this.controlCallback('enroll', message.profiles);
+					}
+					// Mark as active since enrollment starts transcription
+					this.isActive = true;
+					this.sendCallback({
+						type: 'status',
+						status: 'active',
+						message: 'プロフィールの学習が完了し、認識を開始しました',
+					});
+				} catch (error) {
+					this.sendCallback({
+						type: 'error',
+						code: 'ENROLLMENT_ERROR',
+						message: `Failed to enroll profiles: ${error instanceof Error ? error.message : 'Unknown error'}`,
+						recoverable: true,
+					});
+				}
+				break;
+
+			case 'mapSpeaker':
+				// Manual speaker mapping
+				if (!message.speakerId || !message.profileId || !message.displayName) {
+					this.sendCallback({
+						type: 'error',
+						code: 'INVALID_MESSAGE',
+						message: 'speakerId, profileId, and displayName are required for mapSpeaker',
+						recoverable: true,
+					});
+					return;
+				}
+				try {
+					if (this.controlCallback) {
+						await this.controlCallback('mapSpeaker', {
+							speakerId: message.speakerId,
+							profileId: message.profileId,
+							displayName: message.displayName,
+						});
+					}
+					this.sendCallback({
+						type: 'speaker_registered',
+						mapping: {
+							speakerId: message.speakerId,
+							profileId: message.profileId,
+							profileName: message.displayName,
+							isRegistered: true,
+						},
+					});
+				} catch (error) {
+					this.sendCallback({
+						type: 'error',
+						code: 'MAPPING_ERROR',
+						message: `Failed to map speaker: ${error instanceof Error ? error.message : 'Unknown error'}`,
+						recoverable: true,
+					});
+				}
 				break;
 
 			default:

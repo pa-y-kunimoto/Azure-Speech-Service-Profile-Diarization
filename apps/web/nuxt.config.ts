@@ -5,6 +5,10 @@ export default defineNuxtConfig({
 	compatibilityDate: '2024-12-01',
 	devtools: { enabled: true },
 
+	devServer: {
+		port: process.env.WEB_PORT ? Number.parseInt(process.env.WEB_PORT) : 3002,
+	},
+
 	css: ['~/assets/css/tailwind.css'],
 
 	vite: {
@@ -41,7 +45,7 @@ export default defineNuxtConfig({
 
 	runtimeConfig: {
 		public: {
-			apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:3002',
+			apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:3001',
 		},
 	},
 
