@@ -146,6 +146,17 @@ export function setupWebSocketServer(server: Server, config: WebSocketServerConf
 				});
 			});
 
+			// Handle enrollment warnings (e.g., profile audio didn't detect any speaker)
+			service.on('enrollmentWarning', (data: unknown) => {
+				const warning = data as { profileId: string; profileName: string; message: string };
+				sendToClient({
+					type: 'enrollment_warning',
+					profileId: warning.profileId,
+					profileName: warning.profileName,
+					message: warning.message,
+				});
+			});
+
 			// Set up audio forwarding
 			handler.setTranscriptionCallback((chunk: Buffer) => {
 				service.pushAudio(chunk);
@@ -168,12 +179,17 @@ export function setupWebSocketServer(server: Server, config: WebSocketServerConf
 							audioBase64: string;
 						}>;
 						if (profiles) {
+							console.log(`[Enrollment] Received ${profiles.length} profile(s) for enrollment`);
 							for (const profile of profiles) {
+								console.log(`[Enrollment] Registering profile: ${profile.profileName}, audio size: ${profile.audioBase64?.length || 0} chars`);
 								service.registerProfile(profile);
 							}
 							// Start transcription first, then enroll
+							console.log('[Enrollment] Starting transcription...');
 							await service.start();
+							console.log('[Enrollment] Starting enrollment process...');
 							await service.startEnrollment();
+							console.log('[Enrollment] Enrollment process completed');
 						}
 						break;
 					}

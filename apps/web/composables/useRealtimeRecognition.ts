@@ -98,6 +98,9 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 	let mediaStream: MediaStream | null = null;
 	let audioContext: AudioContext | null = null;
 	let scriptProcessor: ScriptProcessorNode | null = null;
+	let audioWorkletNode: AudioWorkletNode | null = null;
+	let workletUrl: string | null = null;
+	let workletGain: GainNode | null = null;
 	let reconnectAttempts = 0;
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	let shouldReconnect = false;
@@ -270,8 +273,38 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		audioContext = new AudioContext({ sampleRate: 16000 });
 		const source = audioContext.createMediaStreamSource(mediaStream);
 
-		// Use ScriptProcessorNode for capturing audio data
-		// Note: This is deprecated but works reliably across browsers
+		// Prefer AudioWorkletNode when available (modern, not deprecated)
+		try {
+			if (audioContext.audioWorklet && typeof audioContext.audioWorklet.addModule === 'function') {
+				const workletCode = `class RecorderProcessor extends AudioWorkletProcessor{process(inputs){const input=inputs[0];if(input&&input[0]){this.port.postMessage(input[0]);}return true;}}registerProcessor('recorder-processor',RecorderProcessor);`;
+				const blob = new Blob([workletCode], { type: 'application/javascript' });
+				workletUrl = URL.createObjectURL(blob);
+				await audioContext.audioWorklet.addModule(workletUrl);
+				audioWorkletNode = new AudioWorkletNode(audioContext, 'recorder-processor', {
+					numberOfInputs: 1,
+					numberOfOutputs: 0,
+					channelCount: 1,
+				});
+				audioWorkletNode.port.onmessage = (ev) => {
+					if (status.value !== 'active') return;
+					const float32 = ev.data as Float32Array;
+					const pcmData = convertToInt16(float32);
+					sendAudioChunk(pcmData);
+				};
+
+				// Keep processing by connecting to a silent gain node
+				workletGain = audioContext.createGain();
+				workletGain.gain.value = 0;
+				source.connect(audioWorkletNode);
+				audioWorkletNode.connect(workletGain);
+				workletGain.connect(audioContext.destination);
+				return;
+			}
+		} catch (err) {
+			console.warn('AudioWorklet setup failed, falling back to ScriptProcessorNode', err);
+		}
+
+		// Fallback: ScriptProcessorNode (deprecated)
 		scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
 
 		scriptProcessor.onaudioprocess = (event) => {
@@ -437,6 +470,9 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 				case 'speaker_registered':
 					handleSpeakerRegisteredMessage(message);
 					break;
+				case 'enrollment_warning':
+					handleEnrollmentWarningMessage(message);
+					break;
 				case 'error':
 					handleErrorMessage(message);
 					break;
@@ -510,6 +546,20 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 			...speakerMappings.value.filter((m) => m.speakerId !== message.mapping.speakerId),
 			message.mapping,
 		];
+	}
+
+	/**
+	 * Handle enrollment warning message
+	 */
+	function handleEnrollmentWarningMessage(message: { profileId: string; profileName: string; message: string }): void {
+		console.warn(`Enrollment warning for profile "${message.profileName}": ${message.message}`);
+		// Optionally emit as a non-fatal error so the UI can display it
+		const warningError: RecognitionError = {
+			code: 'ENROLLMENT_WARNING',
+			message: `${message.profileName}: ${message.message}`,
+			recoverable: true,
+		};
+		onError?.(warningError);
 	}
 
 	/**

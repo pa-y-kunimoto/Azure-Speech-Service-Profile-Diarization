@@ -147,6 +147,11 @@ export class DiarizationClient {
 
 				// Set up event handlers
 				this.transcriber.transcribing = (_, e) => {
+					// Emit speakerDetected for interim results too (important for enrollment)
+					const speakerId = e.result?.speakerId;
+					if (speakerId && !this.speakerMappings.has(speakerId)) {
+						this.emit('speakerDetected', speakerId);
+					}
 					this.emit('transcribing', e);
 				};
 

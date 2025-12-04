@@ -13,8 +13,6 @@ COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/core/package.json ./packages/core/
 COPY packages/speech-client/package.json ./packages/speech-client/
-COPY packages/api/package.json ./packages/api/
-COPY packages/cli/package.json ./packages/cli/
 
 # Install dependencies
 RUN npm ci --ignore-scripts
@@ -38,8 +36,6 @@ COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/core/package.json ./packages/core/
 COPY packages/speech-client/package.json ./packages/speech-client/
-COPY packages/api/package.json ./packages/api/
-COPY packages/cli/package.json ./packages/cli/
 
 # Install production dependencies only
 RUN npm ci --omit=dev --ignore-scripts
@@ -55,6 +51,10 @@ ENV API_PORT=3001
 
 # Expose port
 EXPOSE 3001
+
+# Healthcheck - verifies the API health endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node -e "(function(){const http=require('http');const opt={host:'127.0.0.1',port:process.env.API_PORT||3001,path:'/api/health'};const req=http.get(opt,res=>{process.exit(res.statusCode===200?0:1)});req.on('error',()=>process.exit(1));})();"
 
 # Run as non-root user
 RUN groupadd -g 1001 nodejs && \

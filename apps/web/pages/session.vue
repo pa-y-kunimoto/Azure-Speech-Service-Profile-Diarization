@@ -81,6 +81,22 @@
         </span>
       </div>
 
+      <!-- Automatic Speaker Mappings (from enrollment) -->
+      <div v-if="recognition.speakerMappings.value.length > 0" class="mb-4">
+        <h4 class="text-sm font-medium text-gray-700 mb-2">自動マッピング済みプロフィール</h4>
+        <div class="flex flex-wrap gap-2">
+          <span
+            v-for="mapping in recognition.speakerMappings.value"
+            :key="mapping.speakerId"
+            class="px-3 py-1 rounded text-sm font-medium bg-green-100 text-green-800"
+          >
+            {{ mapping.profileName }}
+            <span class="text-green-600 text-xs ml-1">({{ mapping.speakerId }})</span>
+            <span class="ml-1 text-green-600">✓</span>
+          </span>
+        </div>
+      </div>
+
       <!-- Detected Speakers with Manual Mapping -->
       <div v-if="recognition.detectedSpeakers.value.length > 0" class="mb-4">
         <h4 class="text-sm font-medium text-gray-700 mb-2">検出された話者（クリックでプロフィールを割り当て）</h4>
@@ -354,27 +370,45 @@ const sessionDurationSeconds = computed(() => {
   return Math.floor((now - sessionStartTime.value) / 1000);
 });
 
-// Utterances with manual speaker mappings applied
+// Utterances with speaker mappings applied (both automatic and manual)
 const mappedUtterances = computed(() => {
   return recognition.utterances.value.map(utterance => {
-    const mapping = manualSpeakerMappings.value.get(utterance.speakerId);
-    if (mapping) {
+    // First check manual mappings
+    const manualMapping = manualSpeakerMappings.value.get(utterance.speakerId);
+    if (manualMapping) {
       return {
         ...utterance,
-        speakerName: mapping.profileName,
+        speakerName: manualMapping.profileName,
       };
     }
+    
+    // Then check automatic mappings from enrollment
+    const autoMapping = recognition.speakerMappings.value.find(m => m.speakerId === utterance.speakerId);
+    if (autoMapping) {
+      return {
+        ...utterance,
+        speakerName: autoMapping.profileName,
+      };
+    }
+    
     return utterance;
   });
 });
 
-// Interim speaker with manual mapping applied
+// Interim speaker with mapping applied (both automatic and manual)
 const mappedInterimSpeaker = computed(() => {
   const interimSpeakerId = recognition.interimSpeaker.value;
   if (interimSpeakerId) {
-    const mapping = manualSpeakerMappings.value.get(interimSpeakerId);
-    if (mapping) {
-      return mapping.profileName;
+    // First check manual mappings
+    const manualMapping = manualSpeakerMappings.value.get(interimSpeakerId);
+    if (manualMapping) {
+      return manualMapping.profileName;
+    }
+    
+    // Then check automatic mappings from enrollment
+    const autoMapping = recognition.speakerMappings.value.find(m => m.speakerId === interimSpeakerId);
+    if (autoMapping) {
+      return autoMapping.profileName;
     }
   }
   return recognition.interimSpeaker.value;
@@ -419,10 +453,22 @@ function handleUtteranceClick(utterance: { id: string; text: string; speakerName
 
 /**
  * Get the mapped profile name for a speaker ID
+ * Checks both automatic mappings from enrollment and manual mappings
  */
 function getMappedProfile(speakerId: string): string | null {
-  const mapping = manualSpeakerMappings.value.get(speakerId);
-  return mapping?.profileName || null;
+  // First check manual mappings (takes priority)
+  const manualMapping = manualSpeakerMappings.value.get(speakerId);
+  if (manualMapping) {
+    return manualMapping.profileName;
+  }
+  
+  // Then check automatic mappings from enrollment
+  const autoMapping = recognition.speakerMappings.value.find(m => m.speakerId === speakerId);
+  if (autoMapping) {
+    return autoMapping.profileName;
+  }
+  
+  return null;
 }
 
 /**

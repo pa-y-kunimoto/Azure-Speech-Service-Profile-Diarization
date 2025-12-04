@@ -13,8 +13,6 @@ COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/core/package.json ./packages/core/
 COPY packages/speech-client/package.json ./packages/speech-client/
-COPY packages/api/package.json ./packages/api/
-COPY packages/cli/package.json ./packages/cli/
 
 # Install dependencies
 RUN npm ci --ignore-scripts

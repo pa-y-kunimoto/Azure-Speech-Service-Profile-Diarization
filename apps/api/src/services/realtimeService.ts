@@ -258,27 +258,49 @@ export class RealtimeService {
 			this.currentEnrollmentSpeakers.clear();
 			
 			try {
-				// Decode base64 audio
+				// Decode base64 audio (WAV format with 44-byte header)
 				const audioBuffer = Buffer.from(profile.audioBase64, 'base64');
+				console.log(`Profile "${profile.profileName}" total buffer size: ${audioBuffer.length} bytes`);
+				
+				// Skip WAV header (44 bytes) to get raw PCM data
+				const WAV_HEADER_SIZE = 44;
+				if (audioBuffer.length <= WAV_HEADER_SIZE) {
+					console.error(`Profile "${profile.profileName}" audio buffer too small: ${audioBuffer.length} bytes`);
+					continue;
+				}
+				
+				// Extract audio data after WAV header
+				const audioData = audioBuffer.subarray(WAV_HEADER_SIZE);
+				
+				// Calculate audio duration for adaptive wait time
+				// Assuming 16kHz, 16-bit mono: 32000 bytes per second
+				const audioDurationMs = (audioData.length / 32000) * 1000;
+				console.log(`Profile "${profile.profileName}" audio duration: ~${Math.round(audioDurationMs)}ms, PCM data size: ${audioData.length} bytes`);
 				
 				// Send audio in chunks to simulate real-time streaming
 				const chunkSize = 3200; // 100ms of 16kHz 16-bit mono audio
-				for (let offset = 0; offset < audioBuffer.length; offset += chunkSize) {
-					const chunk = audioBuffer.subarray(offset, Math.min(offset + chunkSize, audioBuffer.length));
+				let chunkCount = 0;
+				for (let offset = 0; offset < audioData.length; offset += chunkSize) {
+					const chunk = audioData.subarray(offset, Math.min(offset + chunkSize, audioData.length));
 					this.pushAudio(chunk);
+					chunkCount++;
 					
-					// Small delay to allow processing
-					await this.sleep(50);
+					// Small delay to allow processing (reduced for faster enrollment)
+					await this.sleep(20);
 				}
+				console.log(`Profile "${profile.profileName}" sent ${chunkCount} audio chunks`);
 				
 				// Wait for Azure to process and detect speaker
-				await this.sleep(1000);
+				// Use adaptive wait time: minimum 2 seconds, or at least audio duration
+				const waitTime = Math.max(2000, Math.min(audioDurationMs, 5000));
+				console.log(`Waiting ${waitTime}ms for Azure to process profile "${profile.profileName}"...`);
+				await this.sleep(waitTime);
 				
 				// Map all speakers detected during this profile's audio
 				const detectedSpeakers = Array.from(this.currentEnrollmentSpeakers);
+				console.log(`Profile "${profile.profileName}" detected ${detectedSpeakers.length} speaker(s): ${detectedSpeakers.join(', ') || 'none'}`);
+				
 				if (detectedSpeakers.length > 0) {
-					console.log(`Profile "${profile.profileName}" detected speakers: ${detectedSpeakers.join(', ')}`);
-					
 					for (const speakerId of detectedSpeakers) {
 						if (!this.mappedSpeakerIds.has(speakerId)) {
 							this.mapSpeaker(speakerId, profile.profileId, profile.profileName);
@@ -291,11 +313,21 @@ export class RealtimeService {
 								profileId: profile.profileId,
 								profileName: profile.profileName,
 							});
+							console.log(`Mapped speaker ${speakerId} to profile "${profile.profileName}"`);
 						}
 					}
 				} else {
-					console.log(`Profile "${profile.profileName}" - no speakers detected`);
+					console.log(`Profile "${profile.profileName}" - no speakers detected during enrollment`);
+					// Emit a warning event so the client knows this profile wasn't mapped
+					this.eventEmitter.emit('enrollmentWarning', {
+						profileId: profile.profileId,
+						profileName: profile.profileName,
+						message: 'プロフィール音声からスピーカーを検出できませんでした。音声が短すぎるか、明瞭でない可能性があります。',
+					});
 				}
+				
+				// Short pause between profiles
+				await this.sleep(500);
 				
 			} catch (error) {
 				console.error(`Error enrolling profile ${profile.profileName}:`, error);
