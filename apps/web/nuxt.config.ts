@@ -45,7 +45,10 @@ export default defineNuxtConfig({
 
 	runtimeConfig: {
 		public: {
-			apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:3001',
+			apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:3001',
+			// クライアントサイド（ブラウザ）からの接続先
+			// Docker環境ではコンテナ外からアクセスするため別URLが必要
+			apiExternalUrl: process.env.NUXT_PUBLIC_API_EXTERNAL_URL || process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:3001',
 		},
 	},
 
@@ -61,5 +64,17 @@ export default defineNuxtConfig({
 				},
 			],
 		},
+	},
+
+	nitro: {
+		// node-server プリセットを明示的に指定
+		preset: 'node-server',
+		// 静的アセットの設定
+		publicAssets: [
+			{
+				dir: 'public',
+				baseURL: '/',
+			},
+		],
 	},
 });

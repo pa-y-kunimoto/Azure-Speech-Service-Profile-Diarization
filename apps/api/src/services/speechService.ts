@@ -13,7 +13,7 @@ import type {
 	SessionId,
 	SpeakerMapping,
 } from '@speaker-diarization/core';
-import { isMockMode, mockRegisterProfile } from './mockSpeechService.js';
+import { isMockMode } from './mockSpeechService.js';
 
 // In-memory session storage (would be replaced with proper storage in production)
 const sessions = new Map<SessionId, DiarizationSession>();
@@ -109,7 +109,7 @@ async function registerProfile(
 		sessionId,
 		voiceProfileId: profileId,
 		displayName: profileName,
-		azureSpeakerId: undefined, // Will be assigned when user maps a detected speaker
+		azureSpeakerId: null, // Will be assigned when user maps a detected speaker
 		status: 'pending', // Waiting for speaker detection and manual mapping
 		registeredAt,
 	};

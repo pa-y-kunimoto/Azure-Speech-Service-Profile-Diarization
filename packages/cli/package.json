@@ -14,7 +14,7 @@
   "keywords": ["azure", "speech-service", "diarization", "cli"],
   "license": "MIT",
   "dependencies": {
-    "@azure-speech-diarization/core": "*"
+    "@speaker-diarization/core": "*"
   },
   "devDependencies": {
     "typescript": "^5.3.0"

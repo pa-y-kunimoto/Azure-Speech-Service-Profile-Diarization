@@ -3,8 +3,19 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "composite": true
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@speaker-diarization/core": ["../../packages/core/dist"],
+      "@speaker-diarization/core/*": ["../../packages/core/dist/*"],
+      "@speaker-diarization/speech-client": ["../../packages/speech-client/dist"],
+      "@speaker-diarization/speech-client/*": ["../../packages/speech-client/dist/*"]
+    }
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "tests"]
+  "exclude": ["node_modules", "dist", "tests"],
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/speech-client" }
+  ]
 }

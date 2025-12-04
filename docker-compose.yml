@@ -1,0 +1,59 @@
+services:
+  # API サービス - WebSocket接続のため外部公開が必要
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: speaker-diarization-api
+    environment:
+      - NODE_ENV=production
+      - API_PORT=3001
+      - SPEECH_KEY=${SPEECH_KEY}
+      - SPEECH_REGION=${SPEECH_REGION}
+      - SPEECH_ENDPOINT=${SPEECH_ENDPOINT}
+      - USE_MOCK_SPEECH=${USE_MOCK_SPEECH:-false}
+    ports:
+      - "${API_PORT:-3001}:3001"
+    networks:
+      - internal
+      - external
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Web サービス - 外部からアクセス可能
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: speaker-diarization-web
+    environment:
+      - NODE_ENV=production
+      - NUXT_HOST=0.0.0.0
+      - NUXT_PORT=3002
+      # SSR時のAPI接続先（コンテナ間通信）
+      - NUXT_PUBLIC_API_BASE_URL=http://api:3001
+      # クライアントサイドのAPI接続先（外部からアクセス）
+      - NUXT_PUBLIC_API_EXTERNAL_URL=${API_EXTERNAL_URL:-http://localhost:3001}
+    ports:
+      - "${WEB_PORT:-3002}:3002"
+    networks:
+      - internal
+      - external
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  # 内部ネットワーク - api と web 間の通信用
+  internal:
+    driver: bridge
+  
+  # 外部ネットワーク - web と api の外部公開用
+  external:
+    driver: bridge

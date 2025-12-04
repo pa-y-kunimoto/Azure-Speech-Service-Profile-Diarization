@@ -2,7 +2,12 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@speaker-diarization/core": ["../core/dist/index.d.ts"],
+      "@speaker-diarization/core/*": ["../core/dist/*"]
+    }
   },
   "include": ["src"],
   "references": [{ "path": "../core" }]

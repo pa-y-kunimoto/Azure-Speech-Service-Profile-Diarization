@@ -2,7 +2,9 @@
   "files": [],
   "references": [
     { "path": "packages/core" },
+    { "path": "packages/speech-client" },
     { "path": "packages/api" },
-    { "path": "packages/cli" }
+    { "path": "packages/cli" },
+    { "path": "apps/api" }
   ]
 }

@@ -12,7 +12,11 @@ import { useNuxtApp } from 'nuxt/app';
 
 export function useApiFetch() {
 	const {$config} = useNuxtApp();
-	const baseURL = $config.public.apiBaseUrl;
+	
+	// SSR時は内部URL、クライアント時は外部URLを使用
+	const baseURL = import.meta.client 
+		? ($config.public.apiExternalUrl || $config.public.apiBaseUrl)
+		: $config.public.apiBaseUrl;
 
 	/**
 	 * Fetch wrapper with API base URL configured
@@ -36,10 +40,12 @@ export function useApiFetch() {
 
 	/**
 	 * Build full WebSocket URL for an endpoint
+	 * Always uses external URL since WebSocket is client-side only
 	 */
 	function getWebSocketUrl(endpoint: string): string {
-		const wsProtocol = baseURL.startsWith('https') ? 'wss' : 'ws';
-		const host = baseURL.replace(/^https?:\/\//, '');
+		const externalUrl = $config.public.apiExternalUrl || $config.public.apiBaseUrl;
+		const wsProtocol = externalUrl.startsWith('https') ? 'wss' : 'ws';
+		const host = externalUrl.replace(/^https?:\/\//, '');
 		return `${wsProtocol}://${host}${endpoint}`;
 	}
 
