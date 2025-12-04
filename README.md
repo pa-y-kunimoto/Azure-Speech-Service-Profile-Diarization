@@ -37,7 +37,7 @@ Azure Speech Service の話者分離（Diarization）機能を使用して、事
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/your-org/Azure-Speech-Service-Profile-Diarization.git
+git clone https://github.com/pa-y-kunimoto/Azure-Speech-Service-Profile-Diarization.git
 cd Azure-Speech-Service-Profile-Diarization
 
 # 依存関係をインストール
@@ -63,6 +63,54 @@ PORT=3001
 ```
 
 ## 💻 開発
+
+### Docker Compose（ローカルコンテナ）
+
+- **前提**: `Docker` と `Docker Compose` がインストールされていること。
+- プロジェクトルートの `docker-compose.yml` を使って、フロントエンドとバックエンドを同時にコンテナで起動できます。
+
+- 起動（フォアグラウンド、ログをそのまま見る）:
+
+```zsh
+# プロジェクトルートで実行
+docker compose up --build
+```
+
+- 起動（デタッチ / バックグラウンド）:
+
+```zsh
+docker compose up -d --build
+```
+
+- サービス単体で起動する場合（例: `api` または `web`）:
+
+```zsh
+docker compose up --build api
+docker compose up --build web
+```
+
+- 停止・クリーンアップ:
+
+```zsh
+# 停止
+docker compose down
+
+# ボリュームを含めて完全にクリーンにする
+docker compose down -v
+```
+
+- ログの確認:
+
+```zsh
+docker compose logs -f --tail=200
+# 特定サービスのログ
+docker compose logs -f api
+```
+
+- 注意点:
+	- ルートにある `.env` を用意しておくとコンテナで同じ環境変数が参照されます。
+	- デフォルトの公開ポートはフロントエンドが `http://localhost:3000`、バックエンドが `http://localhost:3001` です。
+	- ポートが競合する場合は `.env` や `docker-compose.yml` のポート設定を変更してください。
 
 ### 開発サーバーの起動
 
