@@ -109,7 +109,7 @@ docker compose logs -f api
 
 - 注意点:
 	- ルートにある `.env` を用意しておくとコンテナで同じ環境変数が参照されます。
-	- デフォルトの公開ポートはフロントエンドが `http://localhost:3000`、バックエンドが `http://localhost:3001` です。
+	- デフォルトの公開ポートはフロントエンドが `http://localhost:3002`、バックエンドが `http://localhost:3001` です。
 	- ポートが競合する場合は `.env` や `docker-compose.yml` のポート設定を変更してください。
 
 ### 開発サーバーの起動
@@ -123,7 +123,7 @@ npm run dev --workspace=apps/api  # バックエンドAPI
 npm run dev --workspace=apps/web  # フロントエンド
 ```
 
-- **フロントエンド**: http://localhost:3000
+- **フロントエンド**: http://localhost:3002
 - **バックエンドAPI**: http://localhost:3001
 
 ### テスト
@@ -158,7 +158,7 @@ npm run lint:fix
 
 ### 1. 音声プロフィールの作成
 
-1. http://localhost:3000 にアクセス
+1. http://localhost:3002 にアクセス
 2. 「プロフィールを追加」をクリック
 3. WAV/MP3ファイルをアップロードするか、マイクで録音（最低5秒）
 4. プロフィール名を入力して保存
