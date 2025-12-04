@@ -59,7 +59,6 @@ SPEECH_ENDPOINT=https://your-region.api.cognitive.microsoft.com/
 
 # アプリケーション設定
 NODE_ENV=development
-PORT=3001
 ```
 
 ## 💻 開発
