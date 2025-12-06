@@ -447,8 +447,6 @@ describe('EnrollmentSpeakerMapping', () => {
 			};
 			service.registerProfile(profile);
 
-			const startTime = Date.now();
-
 			// Only emit speakerDetected, not transcribed (simulates incomplete processing)
 			const enrollmentPromise = service.startEnrollment();
 			await sleep(50);
