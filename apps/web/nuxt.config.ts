@@ -14,10 +14,7 @@ export default defineNuxtConfig({
 	vite: {
 		css: {
 			postcss: {
-				plugins: [
-					require('tailwindcss'),
-					require('autoprefixer'),
-				],
+				plugins: [require('tailwindcss'), require('autoprefixer')],
 			},
 		},
 	},
@@ -27,19 +24,19 @@ export default defineNuxtConfig({
 		typeCheck: true,
 		tsConfig: {
 			compilerOptions: {
-				target: "ESNext",
-				module: "ESNext",
-				moduleResolution: "Bundler",
-				lib: ["ESNext", "DOM", "DOM.Iterable"],
-				jsx: "preserve",
-				baseUrl: ".",
+				target: 'ESNext',
+				module: 'ESNext',
+				moduleResolution: 'Bundler',
+				lib: ['ESNext', 'DOM', 'DOM.Iterable'],
+				jsx: 'preserve',
+				baseUrl: '.',
 				paths: {
-					"~/*": ["./*"],
-					"@/*": ["./*"]
+					'~/*': ['./*'],
+					'@/*': ['./*'],
 				},
 			},
-			include: ["**/*.ts", "**/*.vue", ".nuxt/nuxt.d.ts"],
-			exclude: ["node_modules", "dist", ".nuxt", ".output"]
+			include: ['**/*.ts', '**/*.vue', '.nuxt/nuxt.d.ts'],
+			exclude: ['node_modules', 'dist', '.nuxt', '.output'],
 		},
 	},
 
@@ -48,7 +45,10 @@ export default defineNuxtConfig({
 			apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:3001',
 			// クライアントサイド（ブラウザ）からの接続先
 			// Docker環境ではコンテナ外からアクセスするため別URLが必要
-			apiExternalUrl: process.env.NUXT_PUBLIC_API_EXTERNAL_URL || process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:3001',
+			apiExternalUrl:
+				process.env.NUXT_PUBLIC_API_EXTERNAL_URL ||
+				process.env.NUXT_PUBLIC_API_BASE_URL ||
+				'http://localhost:3001',
 		},
 	},
 

@@ -11,9 +11,15 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock $fetch for API calls
-const mockFetch = vi.fn();
-vi.stubGlobal('$fetch', mockFetch);
+// Mock useApiFetch to avoid Nuxt dependency
+const mockApiFetch = vi.fn();
+vi.mock('~/composables/useApiFetch', () => ({
+	useApiFetch: () => ({
+		apiFetch: mockApiFetch,
+		getBaseUrl: () => 'http://localhost:3000',
+		getWebSocketUrl: (endpoint: string) => `ws://localhost:3000${endpoint}`,
+	}),
+}));
 
 // Import after mocking
 import { useDiarizationSession } from '~/composables/useDiarizationSession';
@@ -21,7 +27,7 @@ import { useDiarizationSession } from '~/composables/useDiarizationSession';
 describe('useDiarizationSession', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockFetch.mockReset();
+		mockApiFetch.mockReset();
 	});
 
 	describe('initialization', () => {
@@ -48,7 +54,7 @@ describe('useDiarizationSession', () => {
 
 	describe('createSession', () => {
 		it('should create session with selected profile IDs', async () => {
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				id: 'session-123',
 				status: 'idle',
 				createdAt: new Date().toISOString(),
@@ -58,7 +64,7 @@ describe('useDiarizationSession', () => {
 			const { createSession, sessionId } = useDiarizationSession();
 			await createSession(['profile-1', 'profile-2']);
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/session', {
+			expect(mockApiFetch).toHaveBeenCalledWith('/api/session', {
 				method: 'POST',
 				body: { profileIds: ['profile-1', 'profile-2'] },
 			});
@@ -67,7 +73,7 @@ describe('useDiarizationSession', () => {
 
 		it('should update status to connecting while creating', async () => {
 			let resolvePromise!: (value: unknown) => void;
-			mockFetch.mockReturnValueOnce(
+			mockApiFetch.mockReturnValueOnce(
 				new Promise((resolve) => {
 					resolvePromise = resolve;
 				})
@@ -89,7 +95,7 @@ describe('useDiarizationSession', () => {
 		});
 
 		it('should handle creation error', async () => {
-			mockFetch.mockRejectedValueOnce(new Error('Connection failed'));
+			mockApiFetch.mockRejectedValueOnce(new Error('Connection failed'));
 
 			const { createSession, error, status } = useDiarizationSession();
 			await createSession(['profile-1']);
@@ -110,7 +116,7 @@ describe('useDiarizationSession', () => {
 
 	describe('registerProfile', () => {
 		beforeEach(async () => {
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				id: 'session-123',
 				status: 'idle',
 				createdAt: new Date().toISOString(),
@@ -120,10 +126,11 @@ describe('useDiarizationSession', () => {
 
 		it('should register profile and receive speaker mapping', async () => {
 			const audioData = 'base64-audio-data';
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				speakerId: 'Guest-1',
 				profileId: 'profile-1',
 				profileName: '田中さん',
+				status: 'completed',
 			});
 
 			const { createSession, registerProfile, speakerMappings } = useDiarizationSession();
@@ -142,7 +149,7 @@ describe('useDiarizationSession', () => {
 
 		it('should call API with correct parameters', async () => {
 			const audioData = 'base64-audio-data';
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				speakerId: 'Guest-1',
 				profileId: 'profile-1',
 				profileName: '田中さん',
@@ -152,7 +159,7 @@ describe('useDiarizationSession', () => {
 			await createSession(['profile-1']);
 			await registerProfile('profile-1', '田中さん', audioData);
 
-			expect(mockFetch).toHaveBeenLastCalledWith(
+			expect(mockApiFetch).toHaveBeenLastCalledWith(
 				'/api/session/session-123/register-profile',
 				expect.objectContaining({
 					method: 'POST',
@@ -167,7 +174,7 @@ describe('useDiarizationSession', () => {
 
 		it('should update status to registering during registration', async () => {
 			let resolvePromise!: (value: unknown) => void;
-			mockFetch.mockReturnValueOnce(
+			mockApiFetch.mockReturnValueOnce(
 				new Promise((resolve) => {
 					resolvePromise = resolve;
 				})
@@ -190,7 +197,7 @@ describe('useDiarizationSession', () => {
 		});
 
 		it('should handle registration error', async () => {
-			mockFetch.mockRejectedValueOnce(new Error('Registration failed'));
+			mockApiFetch.mockRejectedValueOnce(new Error('Registration failed'));
 
 			const { createSession, registerProfile, error } = useDiarizationSession();
 			await createSession(['profile-1']);
@@ -211,7 +218,7 @@ describe('useDiarizationSession', () => {
 
 	describe('registerAllProfiles', () => {
 		beforeEach(async () => {
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				id: 'session-123',
 				status: 'idle',
 				createdAt: new Date().toISOString(),
@@ -225,7 +232,7 @@ describe('useDiarizationSession', () => {
 				{ id: 'profile-2', name: '佐藤さん', audioBase64: 'audio-2' },
 			];
 
-			mockFetch
+			mockApiFetch
 				.mockResolvedValueOnce({
 					speakerId: 'Guest-1',
 					profileId: 'profile-1',
@@ -251,7 +258,7 @@ describe('useDiarizationSession', () => {
 			];
 
 			let resolveFirst!: (value: unknown) => void;
-			mockFetch
+			mockApiFetch
 				.mockReturnValueOnce(
 					new Promise((resolve) => {
 						resolveFirst = resolve;
@@ -289,12 +296,17 @@ describe('useDiarizationSession', () => {
 
 	describe('getSession', () => {
 		it('should fetch current session state', async () => {
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				id: 'session-123',
 				status: 'active',
 				createdAt: new Date().toISOString(),
 				speakerMappings: [
-					{ speakerId: 'Guest-1', profileId: 'profile-1', profileName: '田中さん', isRegistered: true },
+					{
+						speakerId: 'Guest-1',
+						profileId: 'profile-1',
+						profileName: '田中さん',
+						isRegistered: true,
+					},
 				],
 			});
 
@@ -306,7 +318,7 @@ describe('useDiarizationSession', () => {
 		});
 
 		it('should call correct API endpoint', async () => {
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				id: 'session-123',
 				status: 'active',
 				createdAt: new Date().toISOString(),
@@ -316,11 +328,11 @@ describe('useDiarizationSession', () => {
 			const { getSession } = useDiarizationSession();
 			await getSession('session-123');
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/session/session-123');
+			expect(mockApiFetch).toHaveBeenCalledWith('/api/session/session-123');
 		});
 
 		it('should handle session not found', async () => {
-			mockFetch.mockRejectedValueOnce({
+			mockApiFetch.mockRejectedValueOnce({
 				statusCode: 404,
 				message: 'Session not found',
 			});
@@ -334,7 +346,7 @@ describe('useDiarizationSession', () => {
 
 	describe('endSession', () => {
 		beforeEach(async () => {
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				id: 'session-123',
 				status: 'idle',
 				createdAt: new Date().toISOString(),
@@ -343,7 +355,7 @@ describe('useDiarizationSession', () => {
 		});
 
 		it('should end active session', async () => {
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				id: 'session-123',
 				status: 'ended',
 				createdAt: new Date().toISOString(),
@@ -359,7 +371,7 @@ describe('useDiarizationSession', () => {
 		});
 
 		it('should call DELETE endpoint', async () => {
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				id: 'session-123',
 				status: 'ended',
 				createdAt: new Date().toISOString(),
@@ -371,13 +383,13 @@ describe('useDiarizationSession', () => {
 			await createSession(['profile-1']);
 			await endSession();
 
-			expect(mockFetch).toHaveBeenLastCalledWith('/api/session/session-123', {
+			expect(mockApiFetch).toHaveBeenLastCalledWith('/api/session/session-123', {
 				method: 'DELETE',
 			});
 		});
 
 		it('should reset state after ending session', async () => {
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				id: 'session-123',
 				status: 'ended',
 				createdAt: new Date().toISOString(),
@@ -395,7 +407,7 @@ describe('useDiarizationSession', () => {
 
 	describe('state helpers', () => {
 		it('should compute isActive correctly', async () => {
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				id: 'session-123',
 				status: 'active',
 				createdAt: new Date().toISOString(),
@@ -431,13 +443,13 @@ describe('useDiarizationSession', () => {
 		});
 
 		it('should provide speaker name lookup', async () => {
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				id: 'session-123',
 				status: 'idle',
 				createdAt: new Date().toISOString(),
 				speakerMappings: [],
 			});
-			mockFetch.mockResolvedValueOnce({
+			mockApiFetch.mockResolvedValueOnce({
 				speakerId: 'Guest-1',
 				profileId: 'profile-1',
 				profileName: '田中さん',
@@ -454,7 +466,7 @@ describe('useDiarizationSession', () => {
 
 	describe('clearError', () => {
 		it('should clear error state', async () => {
-			mockFetch.mockRejectedValueOnce(new Error('Test error'));
+			mockApiFetch.mockRejectedValueOnce(new Error('Test error'));
 
 			const { createSession, clearError, error } = useDiarizationSession();
 			await createSession(['profile-1']);

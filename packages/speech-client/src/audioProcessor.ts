@@ -108,7 +108,8 @@ export class AudioProcessor {
 			throw new Error('AudioProcessor is not initialized or has been closed');
 		}
 
-		const data: ArrayBuffer = audioData instanceof Uint8Array ? toArrayBuffer(audioData) : audioData;
+		const data: ArrayBuffer =
+			audioData instanceof Uint8Array ? toArrayBuffer(audioData) : audioData;
 		this.pushStream.write(data);
 		this.bytesProcessed += data.byteLength;
 	}
@@ -184,9 +185,8 @@ export class AudioProcessor {
 	}
 }
 
-
 function toArrayBuffer(u8: Uint8Array): ArrayBuffer {
-  const buffer = new ArrayBuffer(u8.byteLength);
-  new Uint8Array(buffer).set(u8);
-  return buffer;
+	const buffer = new ArrayBuffer(u8.byteLength);
+	new Uint8Array(buffer).set(u8);
+	return buffer;
 }

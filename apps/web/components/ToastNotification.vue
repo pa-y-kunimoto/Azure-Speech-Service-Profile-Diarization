@@ -5,7 +5,7 @@
  * Displays toast notifications for success, error, warning, and info messages.
  */
 
-import { ref, computed, onUnmounted, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 
 export interface Toast {
 	id: string;

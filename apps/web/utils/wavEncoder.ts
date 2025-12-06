@@ -26,10 +26,7 @@ const DEFAULT_OPTIONS: Required<WavEncoderOptions> = {
  * @param options - Encoding options
  * @returns WAV file as ArrayBuffer
  */
-export function encodeWav(
-	samples: Float32Array,
-	options: WavEncoderOptions = {},
-): ArrayBuffer {
+export function encodeWav(samples: Float32Array, options: WavEncoderOptions = {}): ArrayBuffer {
 	const opts = { ...DEFAULT_OPTIONS, ...options };
 	const { sampleRate, numChannels, bitDepth } = opts;
 
@@ -112,7 +109,7 @@ export function createWavBlob(buffer: ArrayBuffer): Blob {
 export function resample(
 	samples: Float32Array,
 	originalSampleRate: number,
-	targetSampleRate = 16000,
+	targetSampleRate = 16000
 ): Float32Array {
 	if (originalSampleRate === targetSampleRate) {
 		return samples;
@@ -144,10 +141,7 @@ export function resample(
  * @param rightChannel - Right channel samples
  * @returns Mono audio samples
  */
-export function stereoToMono(
-	leftChannel: Float32Array,
-	rightChannel: Float32Array,
-): Float32Array {
+export function stereoToMono(leftChannel: Float32Array, rightChannel: Float32Array): Float32Array {
 	const length = Math.min(leftChannel.length, rightChannel.length);
 	const mono = new Float32Array(length);
 

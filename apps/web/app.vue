@@ -68,7 +68,7 @@ import { useToast } from '~/composables/useToast';
 const { toasts, dismiss } = useToast();
 
 function handleToastDismiss(id: string) {
-  dismiss(id);
+	dismiss(id);
 }
 </script>
 

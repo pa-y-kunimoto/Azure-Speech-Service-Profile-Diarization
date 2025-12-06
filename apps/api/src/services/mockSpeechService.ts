@@ -3,11 +3,7 @@
  * Simulates Azure Speech Service responses for local development
  */
 
-import type {
-	SessionId,
-	SpeakerMapping,
-	Utterance,
-} from '@speaker-diarization/core';
+import type { SessionId, SpeakerMapping, Utterance } from '@speaker-diarization/core';
 import type { DiarizationClient } from '@speaker-diarization/speech-client';
 
 /**
@@ -188,7 +184,7 @@ class MockDiarizationClient {
 	private intervalId: NodeJS.Timeout | null = null;
 	private phraseIndex = 0;
 	private currentOffset = 0;
-	
+
 	// Audio buffer for enrollment simulation
 	private audioBuffer: Uint8Array[] = [];
 	private audioBufferSize = 0;
@@ -218,7 +214,10 @@ class MockDiarizationClient {
 		return this._isTranscribing;
 	}
 
-	async enrollVoiceProfile(profileId: string, _audioData: Buffer): Promise<{ profileId: string; speakerId: string }> {
+	async enrollVoiceProfile(
+		profileId: string,
+		_audioData: Buffer
+	): Promise<{ profileId: string; speakerId: string }> {
 		await delay(300 + Math.random() * 500);
 		const speakerId = `Guest-${this.speakerMappings.size + 1}`;
 		return { profileId, speakerId };
@@ -311,11 +310,11 @@ class MockDiarizationClient {
 		const now = Date.now();
 		const MIN_EMIT_INTERVAL = 800; // Minimum 800ms between emissions
 
-		if (this.audioBufferSize >= CHUNK_THRESHOLD && (now - this.lastEmitTime) >= MIN_EMIT_INTERVAL) {
+		if (this.audioBufferSize >= CHUNK_THRESHOLD && now - this.lastEmitTime >= MIN_EMIT_INTERVAL) {
 			// Determine speaker ID - use a consistent ID for the "current" enrollment
 			this.enrollmentSpeakerCounter++;
 			const speakerId = `Guest-${((this.enrollmentSpeakerCounter - 1) % 3) + 1}`;
-			
+
 			// Pick a phrase from enrollment phrases
 			const phraseIndex = this.enrollmentSpeakerCounter % this.enrollmentPhrases.length;
 			const phrase = this.enrollmentPhrases[phraseIndex] || 'サンプル音声です。';
@@ -352,14 +351,18 @@ class MockDiarizationClient {
 
 			this.currentOffset += duration + 500;
 			this.lastEmitTime = now;
-			
+
 			// Reset buffer
 			this.audioBuffer = [];
 			this.audioBufferSize = 0;
 		}
 	}
 
-	validateAudioFormat(format: { sampleRate: number; bitsPerSample: number; channels: number }): boolean {
+	validateAudioFormat(format: {
+		sampleRate: number;
+		bitsPerSample: number;
+		channels: number;
+	}): boolean {
 		return format.sampleRate === 16000 && format.bitsPerSample === 16 && format.channels === 1;
 	}
 

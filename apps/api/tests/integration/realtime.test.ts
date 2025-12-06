@@ -5,12 +5,15 @@
  * Uses mocked Azure SDK to test the full transcription flow.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'node:events';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock DiarizationClient interface matching speech-client package
 interface MockDiarizationClient {
-	enrollVoiceProfile(profileId: string, audioData: Buffer): Promise<{ profileId: string; speakerId: string }>;
+	enrollVoiceProfile(
+		profileId: string,
+		audioData: Buffer
+	): Promise<{ profileId: string; speakerId: string }>;
 	startTranscription(): Promise<void>;
 	stopTranscription(): Promise<void>;
 	pushAudioChunk(chunk: Uint8Array): void;
@@ -388,15 +391,33 @@ describe('RealtimeService', () => {
 			await service.start();
 
 			clientEventEmitter.emit('transcribed', {
-				result: { text: '私は田中です', speakerId: 'Guest-1', offset: 0, duration: 1000, reason: 1 },
+				result: {
+					text: '私は田中です',
+					speakerId: 'Guest-1',
+					offset: 0,
+					duration: 1000,
+					reason: 1,
+				},
 			});
 
 			clientEventEmitter.emit('transcribed', {
-				result: { text: '私は鈴木です', speakerId: 'Guest-2', offset: 1000, duration: 1000, reason: 1 },
+				result: {
+					text: '私は鈴木です',
+					speakerId: 'Guest-2',
+					offset: 1000,
+					duration: 1000,
+					reason: 1,
+				},
 			});
 
 			clientEventEmitter.emit('transcribed', {
-				result: { text: 'よろしくお願いします', speakerId: 'Guest-1', offset: 2000, duration: 1500, reason: 1 },
+				result: {
+					text: 'よろしくお願いします',
+					speakerId: 'Guest-1',
+					offset: 2000,
+					duration: 1500,
+					reason: 1,
+				},
 			});
 
 			const utterances = service.getUtterances();

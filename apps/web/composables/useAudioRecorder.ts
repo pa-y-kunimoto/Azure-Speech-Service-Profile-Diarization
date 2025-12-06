@@ -5,7 +5,7 @@
  * with WAV conversion support for Azure Speech Service (16kHz, 16-bit, Mono)
  */
 
-import { computed, onUnmounted, ref, type Ref } from 'vue';
+import { type Ref, computed, onUnmounted, ref } from 'vue';
 import { convertToBase64Wav, convertToWavBlob } from '~/utils/wavEncoder';
 
 export interface UseAudioRecorderOptions {
@@ -50,9 +50,7 @@ export interface UseAudioRecorderReturn {
 	getBase64Wav: () => Promise<string | null>;
 }
 
-export function useAudioRecorder(
-	options: UseAudioRecorderOptions = {},
-): UseAudioRecorderReturn {
+export function useAudioRecorder(options: UseAudioRecorderOptions = {}): UseAudioRecorderReturn {
 	const { minDuration = 5 } = options;
 
 	// State
@@ -83,16 +81,15 @@ export function useAudioRecorder(
 		try {
 			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 			// Release the stream immediately - we just wanted to check permission
-            for (const track of stream.getTracks()) {
-                track.stop();
-            }
+			for (const track of stream.getTracks()) {
+				track.stop();
+			}
 			hasPermission.value = true;
 			error.value = null;
 			return true;
 		} catch (err) {
 			hasPermission.value = false;
-			error.value =
-				err instanceof Error ? err.message : 'Microphone permission denied';
+			error.value = err instanceof Error ? err.message : 'Microphone permission denied';
 			return false;
 		}
 	}
@@ -181,10 +178,7 @@ export function useAudioRecorder(
 					? 'audio/webm'
 					: undefined;
 
-			mediaRecorder = new MediaRecorder(
-				mediaStream,
-				mimeType ? { mimeType } : undefined,
-			);
+			mediaRecorder = new MediaRecorder(mediaStream, mimeType ? { mimeType } : undefined);
 
 			mediaRecorder.ondataavailable = (event) => {
 				if (event.data.size > 0) {
@@ -214,8 +208,7 @@ export function useAudioRecorder(
 			startLevelMonitoring(mediaStream);
 		} catch (err) {
 			hasPermission.value = false;
-			error.value =
-				err instanceof Error ? err.message : 'Failed to start recording';
+			error.value = err instanceof Error ? err.message : 'Failed to start recording';
 			isRecording.value = false;
 		}
 	}
@@ -314,8 +307,8 @@ export function useAudioRecorder(
 		// Release media stream
 		if (mediaStream) {
 			for (const track of mediaStream.getTracks()) {
-                track.stop();
-            }
+				track.stop();
+			}
 			mediaStream = null;
 		}
 
@@ -341,8 +334,7 @@ export function useAudioRecorder(
 		try {
 			return await convertToWavBlob(audioBlob.value);
 		} catch (err) {
-			error.value =
-				err instanceof Error ? err.message : 'Failed to convert to WAV';
+			error.value = err instanceof Error ? err.message : 'Failed to convert to WAV';
 			return null;
 		}
 	}
@@ -356,8 +348,7 @@ export function useAudioRecorder(
 		try {
 			return await convertToBase64Wav(audioBlob.value);
 		} catch (err) {
-			error.value =
-				err instanceof Error ? err.message : 'Failed to convert to base64';
+			error.value = err instanceof Error ? err.message : 'Failed to convert to base64';
 			return null;
 		}
 	}

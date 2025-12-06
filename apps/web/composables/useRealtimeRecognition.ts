@@ -5,7 +5,7 @@
  * Handles audio capture and streaming to the backend.
  */
 
-import { ref, computed, onUnmounted } from 'vue';
+import { computed, onUnmounted, ref } from 'vue';
 import { useApiFetch } from './useApiFetch';
 
 /**
@@ -39,7 +39,14 @@ export interface SpeakerMapping {
 /**
  * Recognition status
  */
-export type RecognitionStatus = 'idle' | 'connecting' | 'connected' | 'active' | 'paused' | 'error' | 'ended';
+export type RecognitionStatus =
+	| 'idle'
+	| 'connecting'
+	| 'connected'
+	| 'active'
+	| 'paused'
+	| 'error'
+	| 'ended';
 
 /**
  * Error information
@@ -48,6 +55,33 @@ export interface RecognitionError {
 	code: string;
 	message: string;
 	recoverable: boolean;
+}
+
+/**
+ * Timeout warning data from server
+ */
+export interface TimeoutWarning {
+	warningType: 'session' | 'silence';
+	remainingSeconds: number;
+	message: string;
+}
+
+/**
+ * Timeout state for session
+ */
+export interface TimeoutState {
+	/** Seconds remaining until session timeout, null = unlimited */
+	sessionTimeoutRemaining: number | null;
+	/** Seconds remaining until silence timeout, null = disabled */
+	silenceTimeoutRemaining: number | null;
+	/** Current warning if any */
+	warning: TimeoutWarning | null;
+	/** Whether session timeout is enabled */
+	isSessionTimeoutEnabled: boolean;
+	/** Whether silence timeout is enabled */
+	isSilenceTimeoutEnabled: boolean;
+	/** Whether session extension is allowed */
+	allowSessionExtend: boolean;
 }
 
 /**
@@ -63,6 +97,8 @@ export interface UseRealtimeRecognitionOptions {
 	onError?: (error: RecognitionError) => void;
 	onReconnecting?: (attempt: number, maxAttempts: number) => void;
 	onReconnected?: () => void;
+	onTimeoutWarning?: (warning: TimeoutWarning) => void;
+	onTimeoutEnded?: (reason: 'session_timeout' | 'silence_timeout', message: string) => void;
 }
 
 /**
@@ -79,6 +115,8 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		onError,
 		onReconnecting,
 		onReconnected,
+		onTimeoutWarning,
+		onTimeoutEnded,
 	} = options;
 
 	// Get WebSocket URL from API fetch helper
@@ -92,6 +130,16 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 	const detectedSpeakers = ref<string[]>([]);
 	const speakerMappings = ref<SpeakerMapping[]>([]);
 	const error = ref<RecognitionError | null>(null);
+
+	// Timeout state
+	const timeoutState = ref<TimeoutState>({
+		sessionTimeoutRemaining: null,
+		silenceTimeoutRemaining: null,
+		warning: null,
+		isSessionTimeoutEnabled: false,
+		isSilenceTimeoutEnabled: false,
+		allowSessionExtend: false,
+	});
 
 	// WebSocket and MediaRecorder refs
 	let socket: WebSocket | null = null;
@@ -175,7 +223,9 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		reconnectAttempts++;
 		const delay = reconnectDelay * 2 ** (reconnectAttempts - 1); // Exponential backoff
 
-		console.log(`Attempting reconnection (${reconnectAttempts}/${maxReconnectAttempts}) in ${delay}ms`);
+		console.log(
+			`Attempting reconnection (${reconnectAttempts}/${maxReconnectAttempts}) in ${delay}ms`
+		);
 		onReconnecting?.(reconnectAttempts, maxReconnectAttempts);
 
 		reconnectTimer = setTimeout(async () => {
@@ -365,12 +415,12 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		}
 
 		console.log(`Enrolling ${profiles.length} profile(s)`);
-		
+
 		socket?.send(
 			JSON.stringify({
 				type: 'control',
 				action: 'enroll',
-				profiles: profiles.map(p => ({
+				profiles: profiles.map((p) => ({
 					profileId: p.profileId,
 					profileName: p.profileName,
 					audioBase64: p.audioBase64,
@@ -473,6 +523,15 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 				case 'enrollment_warning':
 					handleEnrollmentWarningMessage(message);
 					break;
+				case 'timeout_status':
+					handleTimeoutStatusMessage(message);
+					break;
+				case 'timeout_warning':
+					handleTimeoutWarningMessage(message);
+					break;
+				case 'timeout_ended':
+					handleTimeoutEndedMessage(message);
+					break;
 				case 'error':
 					handleErrorMessage(message);
 					break;
@@ -509,6 +568,14 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 	 */
 	function handleTranscriptionMessage(message: { utterance: Utterance }): void {
 		const utterance = message.utterance;
+
+		// Auto-dismiss silence warning when speech is detected
+		if (timeoutState.value.warning?.warningType === 'silence') {
+			timeoutState.value = {
+				...timeoutState.value,
+				warning: null,
+			};
+		}
 
 		if (utterance.isFinal) {
 			// Final result - add to utterances list
@@ -551,7 +618,11 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 	/**
 	 * Handle enrollment warning message
 	 */
-	function handleEnrollmentWarningMessage(message: { profileId: string; profileName: string; message: string }): void {
+	function handleEnrollmentWarningMessage(message: {
+		profileId: string;
+		profileName: string;
+		message: string;
+	}): void {
 		console.warn(`Enrollment warning for profile "${message.profileName}": ${message.message}`);
 		// Optionally emit as a non-fatal error so the UI can display it
 		const warningError: RecognitionError = {
@@ -572,6 +643,97 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		if (!message.recoverable) {
 			status.value = 'error';
 		}
+	}
+
+	/**
+	 * Handle timeout status message
+	 */
+	function handleTimeoutStatusMessage(message: {
+		sessionTimeoutRemaining: number | null;
+		silenceTimeoutRemaining: number | null;
+		allowSessionExtend?: boolean;
+	}): void {
+		// Update remaining time on the warning if one is displayed
+		let updatedWarning = timeoutState.value.warning;
+		if (updatedWarning) {
+			if (updatedWarning.warningType === 'silence' && message.silenceTimeoutRemaining !== null) {
+				updatedWarning = {
+					...updatedWarning,
+					remainingSeconds: message.silenceTimeoutRemaining,
+				};
+			} else if (updatedWarning.warningType === 'session' && message.sessionTimeoutRemaining !== null) {
+				updatedWarning = {
+					...updatedWarning,
+					remainingSeconds: message.sessionTimeoutRemaining,
+				};
+			}
+		}
+
+		timeoutState.value = {
+			...timeoutState.value,
+			sessionTimeoutRemaining: message.sessionTimeoutRemaining,
+			silenceTimeoutRemaining: message.silenceTimeoutRemaining,
+			isSessionTimeoutEnabled: message.sessionTimeoutRemaining !== null,
+			isSilenceTimeoutEnabled: message.silenceTimeoutRemaining !== null,
+			allowSessionExtend: message.allowSessionExtend ?? true,
+			warning: updatedWarning,
+		};
+	}
+
+	/**
+	 * Handle timeout warning message
+	 */
+	function handleTimeoutWarningMessage(message: TimeoutWarning): void {
+		timeoutState.value = {
+			...timeoutState.value,
+			warning: message,
+		};
+		onTimeoutWarning?.(message);
+	}
+
+	/**
+	 * Handle timeout ended message
+	 */
+	function handleTimeoutEndedMessage(message: {
+		reason: 'session_timeout' | 'silence_timeout';
+		message: string;
+	}): void {
+		status.value = 'ended';
+		timeoutState.value = {
+			...timeoutState.value,
+			warning: null,
+		};
+		onTimeoutEnded?.(message.reason, message.message);
+	}
+
+	/**
+	 * Extend session timeout
+	 */
+	function extendSession(): void {
+		if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+		socket.send(
+			JSON.stringify({
+				type: 'control',
+				action: 'extend',
+			})
+		);
+
+		// Clear warning when extending
+		timeoutState.value = {
+			...timeoutState.value,
+			warning: null,
+		};
+	}
+
+	/**
+	 * Dismiss timeout warning without extending session
+	 */
+	function dismissWarning(): void {
+		timeoutState.value = {
+			...timeoutState.value,
+			warning: null,
+		};
 	}
 
 	/**
@@ -601,9 +763,9 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		}
 
 		if (mediaStream) {
-            for (const track of mediaStream.getTracks()) {
-                track.stop();
-            }
+			for (const track of mediaStream.getTracks()) {
+				track.stop();
+			}
 			mediaStream = null;
 		}
 	}
@@ -642,6 +804,7 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		detectedSpeakers,
 		speakerMappings,
 		error,
+		timeoutState,
 
 		// Computed
 		isConnected,
@@ -659,5 +822,7 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		enrollProfiles,
 		mapSpeaker,
 		clearUtterances,
+		extendSession,
+		dismissWarning,
 	};
 }

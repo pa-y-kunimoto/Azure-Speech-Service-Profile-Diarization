@@ -23,6 +23,15 @@ declare global {
 
       /** Use mock DiarizationClient */
       USE_MOCK_SPEECH?: "true" | "false";
+
+      /** Session timeout in minutes (0 = unlimited, default: 15) */
+      SESSION_TIMEOUT_MINUTES?: string;
+
+      /** Silence timeout in minutes (0 = disabled, default: 5) */
+      SILENCE_TIMEOUT_MINUTES?: string;
+
+      /** Allow session extension (true | false, default: false) */
+      ALLOW_SESSION_EXTEND?: "true" | "false";
     }
   }
 }

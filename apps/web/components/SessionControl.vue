@@ -7,7 +7,7 @@
  * - Speaker mapping display
  */
 
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useDiarizationSession } from '../composables/useDiarizationSession';
 import { useVoiceProfile } from '../composables/useVoiceProfile';
 
@@ -48,9 +48,7 @@ const selectedProfileIds = ref<Set<string>>(new Set());
 // Computed
 const hasProfiles = computed(() => profiles.value.length > 0);
 const hasSelectedProfiles = computed(() => selectedProfileIds.value.size > 0);
-const isDisabled = computed(
-	() => status.value === 'connecting' || status.value === 'registering'
-);
+const isDisabled = computed(() => status.value === 'connecting' || status.value === 'registering');
 
 // Status display mapping
 const statusLabels: Record<string, string> = {

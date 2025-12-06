@@ -9,13 +9,13 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express, { type Express, type Request, type Response } from 'express';
 
+import { DiarizationClient } from '@speaker-diarization/speech-client';
 import { errorHandler } from './middleware/errorHandler.js';
 import { healthRouter } from './routes/health.js';
 import { sessionRouter } from './routes/session.js';
 import { speechRouter } from './routes/speech.js';
-import { logMockModeStatus, createMockDiarizationClient } from './services/mockSpeechService.js';
+import { createMockDiarizationClient, logMockModeStatus } from './services/mockSpeechService.js';
 import { setupWebSocketServer } from './ws/index.js';
-import { DiarizationClient } from '@speaker-diarization/speech-client';
 
 // Load environment variables from project root
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -74,6 +74,7 @@ httpServer.listen(PORT, () => {
 	console.log(`🚀 API server running on http://localhost:${PORT}`);
 	console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
 	console.log(`🔌 WebSocket: ws://localhost:${PORT}/ws/session/{sessionId}`);
+	console.log(`⏱️  Timeout config: SESSION=${process.env.SESSION_TIMEOUT_MINUTES ?? '15(default)'}min, SILENCE=${process.env.SILENCE_TIMEOUT_MINUTES ?? '5(default)'}min`);
 	logMockModeStatus();
 });
 

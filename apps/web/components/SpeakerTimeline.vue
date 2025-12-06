@@ -6,8 +6,8 @@
  * Shows statistics, speaker filters, visual timeline, speaker cards, and utterance list.
  */
 
+import type { SpeakerMapping, Utterance } from '@speaker-diarization/core';
 import { computed } from 'vue';
-import type { Utterance, SpeakerMapping } from '@speaker-diarization/core';
 
 const props = withDefaults(
 	defineProps<{

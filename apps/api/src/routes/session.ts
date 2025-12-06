@@ -7,7 +7,7 @@
  * - DELETE /api/session/:sessionId - End session
  */
 
-import { Router, type Request, type Response, type NextFunction } from 'express';
+import { type NextFunction, type Request, type Response, Router } from 'express';
 import { speechService } from '../services/speechService.js';
 
 export const sessionRouter = Router();
@@ -65,13 +65,13 @@ sessionRouter.post('/', async (req: Request, res: Response, next: NextFunction) 
 sessionRouter.get('/:sessionId', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { sessionId } = req.params;
-        if (!sessionId) {
-            res.status(400).json({
-                error: 'INVALID_REQUEST',
-                message: 'sessionId is required',
-            });
-            return;
-        }
+		if (!sessionId) {
+			res.status(400).json({
+				error: 'INVALID_REQUEST',
+				message: 'sessionId is required',
+			});
+			return;
+		}
 
 		const session = await speechService.getSession(sessionId);
 
@@ -103,14 +103,14 @@ sessionRouter.delete('/:sessionId', async (req: Request, res: Response, next: Ne
 	try {
 		const { sessionId } = req.params;
 
-        if (!sessionId) {
-            res.status(400).json({
-                error: 'INVALID_REQUEST',
-                message: 'sessionId is required',
-            });
-            return;
-        }
-        
+		if (!sessionId) {
+			res.status(400).json({
+				error: 'INVALID_REQUEST',
+				message: 'sessionId is required',
+			});
+			return;
+		}
+
 		const session = await speechService.deleteSession(sessionId);
 
 		if (!session) {

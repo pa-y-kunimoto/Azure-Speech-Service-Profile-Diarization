@@ -8,4 +8,7 @@ export type {
 } from './diarizationClient.js';
 
 export { AudioProcessor } from './audioProcessor.js';
-export type { AudioProcessorConfig, AudioFormat as ProcessorAudioFormat } from './audioProcessor.js';
+export type {
+	AudioProcessorConfig,
+	AudioFormat as ProcessorAudioFormat,
+} from './audioProcessor.js';

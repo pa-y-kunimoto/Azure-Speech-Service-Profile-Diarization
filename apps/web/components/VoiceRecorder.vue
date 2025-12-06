@@ -219,27 +219,27 @@ import { useAudioRecorder } from '~/composables/useAudioRecorder';
 import { useVoiceProfile } from '~/composables/useVoiceProfile';
 
 const emit = defineEmits<{
-  profileAdded: [/** profileId */ string];
+	profileAdded: [/** profileId */ string];
 }>();
 
 // Composables
 const {
-  isRecording,
-  isPaused,
-  duration,
-  audioBlob,
-  error,
-  hasPermission,
-  meetsMinDuration,
-  audioLevel,
-  requestPermission,
-  startRecording,
-  stopRecording,
-  pauseRecording,
-  resumeRecording,
-  cancelRecording,
-  reset,
-  getBase64Wav,
+	isRecording,
+	isPaused,
+	duration,
+	audioBlob,
+	error,
+	hasPermission,
+	meetsMinDuration,
+	audioLevel,
+	requestPermission,
+	startRecording,
+	stopRecording,
+	pauseRecording,
+	resumeRecording,
+	cancelRecording,
+	reset,
+	getBase64Wav,
 } = useAudioRecorder({ minDuration: 5 });
 
 const { addProfile } = useVoiceProfile();
@@ -252,121 +252,121 @@ const saveError = ref<string | null>(null);
 
 // Validation
 const nameError = computed(() => {
-  if (speakerName.value.length === 0) return null;
-  if (speakerName.value.length > 50) return '話者名は50文字以内で入力してください';
-  return null;
+	if (speakerName.value.length === 0) return null;
+	if (speakerName.value.length > 50) return '話者名は50文字以内で入力してください';
+	return null;
 });
 
 const canSave = computed(() => {
-  return (
-    speakerName.value.trim().length >= 1 &&
-    speakerName.value.length <= 50 &&
-    audioBlob.value !== null &&
-    !isProcessing.value
-  );
+	return (
+		speakerName.value.trim().length >= 1 &&
+		speakerName.value.length <= 50 &&
+		audioBlob.value !== null &&
+		!isProcessing.value
+	);
 });
 
 // Watch for audio blob changes to create preview URL
 watch(audioBlob, (newBlob) => {
-  if (audioPreviewUrl.value) {
-    URL.revokeObjectURL(audioPreviewUrl.value);
-    audioPreviewUrl.value = null;
-  }
-  if (newBlob) {
-    audioPreviewUrl.value = URL.createObjectURL(newBlob);
-  }
+	if (audioPreviewUrl.value) {
+		URL.revokeObjectURL(audioPreviewUrl.value);
+		audioPreviewUrl.value = null;
+	}
+	if (newBlob) {
+		audioPreviewUrl.value = URL.createObjectURL(newBlob);
+	}
 });
 
 // Format duration as mm:ss
 function formatDuration(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
+	const mins = Math.floor(seconds / 60);
+	const secs = seconds % 60;
+	return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 // Handlers
 async function handleRequestPermission() {
-  await requestPermission();
+	await requestPermission();
 }
 
 async function handleStartRecording() {
-  saveError.value = null;
-  await startRecording();
+	saveError.value = null;
+	await startRecording();
 }
 
 function handlePause() {
-  pauseRecording();
+	pauseRecording();
 }
 
 function handleResume() {
-  resumeRecording();
+	resumeRecording();
 }
 
 async function handleStop() {
-  await stopRecording();
+	await stopRecording();
 }
 
 function handleCancel() {
-  cancelRecording();
-  if (audioPreviewUrl.value) {
-    URL.revokeObjectURL(audioPreviewUrl.value);
-    audioPreviewUrl.value = null;
-  }
+	cancelRecording();
+	if (audioPreviewUrl.value) {
+		URL.revokeObjectURL(audioPreviewUrl.value);
+		audioPreviewUrl.value = null;
+	}
 }
 
 function handleReRecord() {
-  reset();
-  if (audioPreviewUrl.value) {
-    URL.revokeObjectURL(audioPreviewUrl.value);
-    audioPreviewUrl.value = null;
-  }
+	reset();
+	if (audioPreviewUrl.value) {
+		URL.revokeObjectURL(audioPreviewUrl.value);
+		audioPreviewUrl.value = null;
+	}
 }
 
 async function handleSave() {
-  if (!canSave.value) return;
+	if (!canSave.value) return;
 
-  isProcessing.value = true;
-  saveError.value = null;
+	isProcessing.value = true;
+	saveError.value = null;
 
-  try {
-    // Convert to base64 WAV
-    const base64Wav = await getBase64Wav();
-    if (!base64Wav) {
-      saveError.value = '音声データの変換に失敗しました';
-      return;
-    }
+	try {
+		// Convert to base64 WAV
+		const base64Wav = await getBase64Wav();
+		if (!base64Wav) {
+			saveError.value = '音声データの変換に失敗しました';
+			return;
+		}
 
-    // Add profile
-    const result = addProfile({
-      name: speakerName.value.trim(),
-      audioBase64: base64Wav,
-      durationSeconds: duration.value,
-      source: 'recording',
-    });
+		// Add profile
+		const result = addProfile({
+			name: speakerName.value.trim(),
+			audioBase64: base64Wav,
+			durationSeconds: duration.value,
+			source: 'recording',
+		});
 
-    if (result.success && result.profile) {
-      emit('profileAdded', result.profile.id);
-      // Reset for next recording
-      speakerName.value = '';
-      reset();
-      if (audioPreviewUrl.value) {
-        URL.revokeObjectURL(audioPreviewUrl.value);
-        audioPreviewUrl.value = null;
-      }
-    } else {
-      saveError.value = result.errors?.[0]?.message || 'プロフィールの保存に失敗しました';
-    }
-  } catch (err) {
-    saveError.value = err instanceof Error ? err.message : 'プロフィールの保存に失敗しました';
-  } finally {
-    isProcessing.value = false;
-  }
+		if (result.success && result.profile) {
+			emit('profileAdded', result.profile.id);
+			// Reset for next recording
+			speakerName.value = '';
+			reset();
+			if (audioPreviewUrl.value) {
+				URL.revokeObjectURL(audioPreviewUrl.value);
+				audioPreviewUrl.value = null;
+			}
+		} else {
+			saveError.value = result.errors?.[0]?.message || 'プロフィールの保存に失敗しました';
+		}
+	} catch (err) {
+		saveError.value = err instanceof Error ? err.message : 'プロフィールの保存に失敗しました';
+	} finally {
+		isProcessing.value = false;
+	}
 }
 
 // Cleanup on unmount
 onUnmounted(() => {
-  if (audioPreviewUrl.value) {
-    URL.revokeObjectURL(audioPreviewUrl.value);
-  }
+	if (audioPreviewUrl.value) {
+		URL.revokeObjectURL(audioPreviewUrl.value);
+	}
 });
 </script>

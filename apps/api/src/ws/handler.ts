@@ -16,7 +16,7 @@ interface AudioMessage {
 
 interface ControlMessage {
 	type: 'control';
-	action: 'start' | 'stop' | 'pause' | 'resume' | 'enroll' | 'mapSpeaker';
+	action: 'start' | 'stop' | 'pause' | 'resume' | 'enroll' | 'mapSpeaker' | 'extend';
 	profiles?: Array<{
 		profileId: string;
 		profileName: string;
@@ -70,11 +70,7 @@ interface SpeakerRegisteredMessage {
 	};
 }
 
-type ServerMessage =
-	| TranscriptionMessage
-	| StatusMessage
-	| ErrorMessage
-	| SpeakerRegisteredMessage;
+type ServerMessage = TranscriptionMessage | StatusMessage | ErrorMessage | SpeakerRegisteredMessage;
 
 type SendCallback = (message: ServerMessage) => void;
 type TranscriptionCallback = (chunk: Buffer) => void;
@@ -210,6 +206,7 @@ export class WebSocketHandler {
 	/**
 	 * Handle control message
 	 */
+	// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Reviewed
 	private async handleControlMessage(message: ControlMessage): Promise<void> {
 		switch (message.action) {
 			case 'start':
@@ -369,6 +366,23 @@ export class WebSocketHandler {
 						type: 'error',
 						code: 'MAPPING_ERROR',
 						message: `Failed to map speaker: ${error instanceof Error ? error.message : 'Unknown error'}`,
+						recoverable: true,
+					});
+				}
+				break;
+
+			case 'extend':
+				// Extend session timeout
+				try {
+					if (this.controlCallback) {
+						await this.controlCallback('extend');
+					}
+					// Response is handled by the control callback in ws/index.ts
+				} catch (error) {
+					this.sendCallback({
+						type: 'error',
+						code: 'EXTEND_ERROR',
+						message: `Failed to extend session: ${error instanceof Error ? error.message : 'Unknown error'}`,
 						recoverable: true,
 					});
 				}

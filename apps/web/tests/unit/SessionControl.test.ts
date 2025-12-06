@@ -11,7 +11,7 @@
 
 import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 
 // Mock useDiarizationSession
 const mockCreateSession = vi.fn();
@@ -20,12 +20,15 @@ const mockEndSession = vi.fn();
 const mockClearError = vi.fn();
 const mockStatus = ref<string>('idle');
 const mockSessionId = ref<string | null>(null);
-const mockSpeakerMappings = ref<Array<{
-	speakerId: string;
-	profileId: string;
-	profileName: string;
-	isRegistered: boolean;
-}>>([]);
+const mockSpeakerMappings = ref<
+	Array<{
+		voiceProfileId: string;
+		displayName: string;
+		azureSpeakerId: string | null;
+		status: string;
+		sessionId: string;
+	}>
+>([]);
 const mockError = ref<Error | null>(null);
 const mockRegistrationProgress = ref({ current: 0, total: 0 });
 
@@ -56,13 +59,15 @@ vi.mock('../../composables/useDiarizationSession', () => ({
 }));
 
 // Mock useVoiceProfile
-const mockProfiles = ref<Array<{
-	id: string;
-	name: string;
-	audioBase64: string;
-	createdAt: string;
-	durationSeconds: number;
-}>>([]);
+const mockProfiles = ref<
+	Array<{
+		id: string;
+		name: string;
+		audioBase64: string;
+		createdAt: string;
+		durationSeconds: number;
+	}>
+>([]);
 
 vi.mock('../../composables/useVoiceProfile', () => ({
 	useVoiceProfile: () => ({
@@ -87,8 +92,20 @@ describe('SessionControl', () => {
 	describe('profile selection', () => {
 		beforeEach(() => {
 			mockProfiles.value = [
-				{ id: 'p1', name: '田中さん', audioBase64: 'audio1', createdAt: '2024-01-01', durationSeconds: 10 },
-				{ id: 'p2', name: '佐藤さん', audioBase64: 'audio2', createdAt: '2024-01-01', durationSeconds: 15 },
+				{
+					id: 'p1',
+					name: '田中さん',
+					audioBase64: 'audio1',
+					createdAt: '2024-01-01',
+					durationSeconds: 10,
+				},
+				{
+					id: 'p2',
+					name: '佐藤さん',
+					audioBase64: 'audio2',
+					createdAt: '2024-01-01',
+					durationSeconds: 15,
+				},
 			];
 		});
 
@@ -145,7 +162,13 @@ describe('SessionControl', () => {
 	describe('session start', () => {
 		beforeEach(() => {
 			mockProfiles.value = [
-				{ id: 'p1', name: '田中さん', audioBase64: 'audio1', createdAt: '2024-01-01', durationSeconds: 10 },
+				{
+					id: 'p1',
+					name: '田中さん',
+					audioBase64: 'audio1',
+					createdAt: '2024-01-01',
+					durationSeconds: 10,
+				},
 			];
 		});
 
@@ -232,8 +255,8 @@ describe('SessionControl', () => {
 			mockStatus.value = 'active';
 			mockSessionId.value = 'session-123';
 			mockSpeakerMappings.value = [
-				{ speakerId: 'Guest-1', profileId: 'p1', profileName: '田中さん', isRegistered: true },
-				{ speakerId: 'Guest-2', profileId: 'p2', profileName: '佐藤さん', isRegistered: true },
+				{ voiceProfileId: 'p1', displayName: '田中さん', azureSpeakerId: 'Guest-1', status: 'completed', sessionId: 'session-123' },
+				{ voiceProfileId: 'p2', displayName: '佐藤さん', azureSpeakerId: 'Guest-2', status: 'completed', sessionId: 'session-123' },
 			];
 		});
 

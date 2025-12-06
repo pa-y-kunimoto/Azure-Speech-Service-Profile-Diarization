@@ -5,7 +5,7 @@
  * Provides methods to show success, error, warning, and info toasts.
  */
 
-import { ref, readonly } from 'vue';
+import { readonly, ref } from 'vue';
 
 export interface Toast {
 	id: string;
@@ -13,20 +13,24 @@ export interface Toast {
 	title: string;
 	message?: string | undefined;
 	duration?: number | undefined;
-	action?: {
-    label: string;
-    onClick: () => void;
-} | undefined;
+	action?:
+		| {
+				label: string;
+				onClick: () => void;
+		  }
+		| undefined;
 }
 
 export interface ToastOptions {
 	title: string;
 	message?: string | undefined;
 	duration?: number | undefined;
-	action?: {
-    label: string;
-    onClick: () => void;
-} | undefined;
+	action?:
+		| {
+				label: string;
+				onClick: () => void;
+		  }
+		| undefined;
 }
 
 // Global state for toasts

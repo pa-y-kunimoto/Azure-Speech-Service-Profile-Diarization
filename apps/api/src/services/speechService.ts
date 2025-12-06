@@ -47,7 +47,7 @@ async function createSession(_input: CreateSessionInput): Promise<DiarizationSes
 	if (!isMockMode()) {
 		// TODO: Initialize Azure Speech Service connection
 		// This would create a ConversationTranscriber instance
-        console.log('Initialize Azure Speech Service connection for session:', sessionId);
+		console.log('Initialize Azure Speech Service connection for session:', sessionId);
 	}
 
 	return session;
