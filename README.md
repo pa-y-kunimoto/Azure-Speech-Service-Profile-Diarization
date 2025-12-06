@@ -20,8 +20,6 @@ Azure Speech Service の話者分離（Diarization）機能を使用して、事
 ├── packages/
 │   ├── core/         # 共通型定義・ユーティリティ
 │   ├── speech-client/# Azure Speech SDK ラッパー
-│   ├── api/          # API クライアント
-│   └── cli/          # CLI ツール
 └── specs/            # 仕様書
 ```
 
