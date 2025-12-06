@@ -208,6 +208,53 @@ npm run lint:fix
 - **テスト**: Vitest, Playwright
 - **コード品質**: Biome.js, TypeScript strict mode
 
+## 🧭 アーキテクチャ図
+
+以下は本プロジェクトの高レベルアーキテクチャ図です（Mermaid 形式）。フロントエンドは Nuxt アプリケーションで、バックエンド API が WebSocket と REST を提供します。音声処理は `speech-client` と Azure Speech Service に依存します。
+
+```mermaid
+flowchart TD
+	subgraph Browser
+		direction TB
+		Web["Web (Nuxt)
+        Browser UI"]
+		Recorder["Voice Recorder
+        (wav / mp3)"]
+		Upload["Profile Uploader"]
+	end
+
+	subgraph Backend
+		direction TB
+		API["API (Express)
+        REST / WebSocket"]
+		Client["@speaker-diarization/speech-client
+        Audio processing / SDK wrapper"]
+		Core["@speaker-diarization/core
+        Shared types / interfaces"]
+	end
+
+	subgraph Cloud
+		direction TB
+		Speech["Azure Speech Service
+        Real-time + Profile-based recognition"]
+	end
+
+	Recorder --> Web
+	Upload --> Web
+	Web -->|HTTP REST| API
+	Web -->|"WebSocket (real-time audio/events)"| API
+	API -->|calls SDK| Client
+	API -->|uses types| Core
+	Client -->|Realtime / REST| Speech
+
+	classDef azure fill:#f3f9ff,stroke:#0366d6
+	class Speech azure
+
+	%% Notes (clickable links may not work in all renderers)
+	click API "./apps/api/README.md" "API docs"
+	click Web "./apps/web/README.md" "Web docs"
+```
+
 ## 📄 ライセンス
 
 MIT
