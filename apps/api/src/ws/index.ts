@@ -5,14 +5,31 @@
  * Handles connection management and message routing.
  */
 
-import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'node:http';
-import { WebSocketHandler } from './handler.js';
-import { RealtimeService, type Utterance } from '../services/realtimeService.js';
 import type { DiarizationClient } from '@speaker-diarization/speech-client';
+import { WebSocket, WebSocketServer } from 'ws';
+import { RealtimeService, type Utterance } from '../services/realtimeService.js';
+import {
+	SessionTimeoutService,
+	type TimeoutEndEvent,
+	type TimeoutStatus,
+	type TimeoutWarning,
+} from '../services/sessionTimeoutService.js';
+import { loadTimeoutConfig } from '../utils/timeoutConfig.js';
+import { WebSocketHandler } from './handler.js';
 
 // Session store - maps sessionId to their services
-const sessions: Map<string, { handler: WebSocketHandler; service: RealtimeService }> = new Map();
+const sessions: Map<
+	string,
+	{
+		handler: WebSocketHandler;
+		service: RealtimeService;
+		timeoutService: SessionTimeoutService | null;
+	}
+> = new Map();
+
+// Global timeout configuration (loaded once at startup)
+let globalTimeoutConfig = loadTimeoutConfig();
 
 // Client store - maps sessionId to connected WebSocket clients
 const clients: Map<string, Set<WebSocket>> = new Map();
@@ -24,7 +41,10 @@ export interface WebSocketServerConfig {
 /**
  * Setup WebSocket server on existing HTTP server
  */
-export function setupWebSocketServer(server: Server, config: WebSocketServerConfig): WebSocketServer {
+export function setupWebSocketServer(
+	server: Server,
+	config: WebSocketServerConfig
+): WebSocketServer {
 	const wss = new WebSocketServer({
 		server,
 		// Don't use path option - handle path parsing manually for dynamic sessionId
@@ -34,28 +54,32 @@ export function setupWebSocketServer(server: Server, config: WebSocketServerConf
 		// Extract sessionId from URL: /ws/session/{sessionId}
 		const url = new URL(request.url || '', `http://${request.headers.host}`);
 		const pathParts = url.pathname.split('/');
-		
+
 		// Validate path format: /ws/session/{sessionId}
 		if (pathParts.length < 4 || pathParts[1] !== 'ws' || pathParts[2] !== 'session') {
-			ws.send(JSON.stringify({
-				type: 'error',
-				code: 'INVALID_PATH',
-				message: 'Invalid WebSocket path. Use /ws/session/{sessionId}',
-				recoverable: false,
-			}));
+			ws.send(
+				JSON.stringify({
+					type: 'error',
+					code: 'INVALID_PATH',
+					message: 'Invalid WebSocket path. Use /ws/session/{sessionId}',
+					recoverable: false,
+				})
+			);
 			ws.close();
 			return;
 		}
-		
+
 		const sessionId = pathParts[3];
 
 		if (!sessionId || sessionId === 'session') {
-			ws.send(JSON.stringify({
-				type: 'error',
-				code: 'INVALID_SESSION',
-				message: 'Session ID is required',
-				recoverable: false,
-			}));
+			ws.send(
+				JSON.stringify({
+					type: 'error',
+					code: 'INVALID_SESSION',
+					message: 'Session ID is required',
+					recoverable: false,
+				})
+			);
 			ws.close();
 			return;
 		}
@@ -157,20 +181,96 @@ export function setupWebSocketServer(server: Server, config: WebSocketServerConf
 				});
 			});
 
+			// Set up timeout service
+			const timeoutService = new SessionTimeoutService(sessionId, globalTimeoutConfig);
+
+			// Connect timeout service events
+			timeoutService.on('tick', (status: TimeoutStatus) => {
+				sendToClient({
+					type: 'timeout_status',
+					sessionTimeoutRemaining: status.sessionTimeoutRemaining,
+					silenceTimeoutRemaining: status.silenceTimeoutRemaining,
+				});
+			});
+
+			timeoutService.on('sessionWarning', (warning: TimeoutWarning) => {
+				sendToClient({
+					type: 'timeout_warning',
+					warningType: warning.warningType,
+					remainingSeconds: warning.remainingSeconds,
+					message: warning.message,
+				});
+			});
+
+			timeoutService.on('silenceWarning', (warning: TimeoutWarning) => {
+				sendToClient({
+					type: 'timeout_warning',
+					warningType: warning.warningType,
+					remainingSeconds: warning.remainingSeconds,
+					message: warning.message,
+				});
+			});
+
+			timeoutService.on('sessionTimeout', (event: TimeoutEndEvent) => {
+				sendToClient({
+					type: 'timeout_ended',
+					reason: event.reason,
+					message: event.message,
+				});
+				// Close session after timeout
+				closeSession(sessionId);
+			});
+
+			timeoutService.on('silenceTimeout', (event: TimeoutEndEvent) => {
+				sendToClient({
+					type: 'timeout_ended',
+					reason: event.reason,
+					message: event.message,
+				});
+				// Close session after timeout
+				closeSession(sessionId);
+			});
+
+			// Reset silence timer when speech is detected
+			service.on('transcribed', () => {
+				timeoutService.resetSilenceTimer();
+			});
+
 			// Set up audio forwarding
 			handler.setTranscriptionCallback((chunk: Buffer) => {
 				service.pushAudio(chunk);
 			});
 
 			// Set up control actions
+			// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Reviewed
 			handler.setControlCallback(async (action: string, data?: unknown) => {
 				switch (action) {
 					case 'start':
 						await service.start();
+						timeoutService.start();
 						break;
 					case 'stop':
 						await service.stop();
+						timeoutService.stop();
 						break;
+					case 'extend': {
+						const extended = timeoutService.extend();
+						if (extended) {
+							sendToClient({
+								type: 'status',
+								status: 'extended',
+								message: 'セッションを延長しました。',
+							});
+						} else {
+							sendToClient({
+								type: 'error',
+								code: 'EXTEND_NOT_AVAILABLE',
+								message: 'セッション延長は利用できません（タイムアウトが無効です）。',
+								recoverable: true,
+							});
+						}
+						break;
+					}
 					case 'enroll': {
 						// Register profiles and start enrollment
 						const profiles = data as Array<{
@@ -181,12 +281,15 @@ export function setupWebSocketServer(server: Server, config: WebSocketServerConf
 						if (profiles) {
 							console.log(`[Enrollment] Received ${profiles.length} profile(s) for enrollment`);
 							for (const profile of profiles) {
-								console.log(`[Enrollment] Registering profile: ${profile.profileName}, audio size: ${profile.audioBase64?.length || 0} chars`);
+								console.log(
+									`[Enrollment] Registering profile: ${profile.profileName}, audio size: ${profile.audioBase64?.length || 0} chars`
+								);
 								service.registerProfile(profile);
 							}
 							// Start transcription first, then enroll
 							console.log('[Enrollment] Starting transcription...');
 							await service.start();
+							timeoutService.start();
 							console.log('[Enrollment] Starting enrollment process...');
 							await service.startEnrollment();
 							console.log('[Enrollment] Enrollment process completed');
@@ -208,17 +311,19 @@ export function setupWebSocketServer(server: Server, config: WebSocketServerConf
 				}
 			});
 
-			sessionData = { handler, service };
+			sessionData = { handler, service, timeoutService };
 			sessions.set(sessionId, sessionData);
 		}
 
 		// Send connected status
-		ws.send(JSON.stringify({
-			type: 'status',
-			status: 'connected',
-			message: 'WebSocket接続が確立されました',
-			sessionId,
-		}));
+		ws.send(
+			JSON.stringify({
+				type: 'status',
+				status: 'connected',
+				message: 'WebSocket接続が確立されました',
+				sessionId,
+			})
+		);
 
 		// Handle incoming messages
 		ws.on('message', (data) => {
@@ -227,12 +332,14 @@ export function setupWebSocketServer(server: Server, config: WebSocketServerConf
 				sessionData.handler.handleMessage(message);
 			} catch (error) {
 				console.error('Error handling WebSocket message:', error);
-				ws.send(JSON.stringify({
-					type: 'error',
-					code: 'INTERNAL_ERROR',
-					message: 'Failed to process message',
-					recoverable: true,
-				}));
+				ws.send(
+					JSON.stringify({
+						type: 'error',
+						code: 'INTERNAL_ERROR',
+						message: 'Failed to process message',
+						recoverable: true,
+					})
+				);
 			}
 		});
 
@@ -325,6 +432,14 @@ export function closeSession(sessionId: string): void {
 	const session = sessions.get(sessionId);
 	if (session) {
 		session.service.stop().catch(console.error);
+		session.timeoutService?.stop();
 		sessions.delete(sessionId);
 	}
+}
+
+/**
+ * Reload timeout configuration from environment variables
+ */
+export function reloadTimeoutConfig(): void {
+	globalTimeoutConfig = loadTimeoutConfig();
 }

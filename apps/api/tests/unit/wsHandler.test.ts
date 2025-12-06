@@ -5,7 +5,7 @@
  * Covers audio/control message processing, event emission, and error handling.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock types for WebSocket messages
 interface AudioMessage {
@@ -56,11 +56,7 @@ interface SpeakerRegisteredMessage {
 	};
 }
 
-type ServerMessage =
-	| TranscriptionMessage
-	| StatusMessage
-	| ErrorMessage
-	| SpeakerRegisteredMessage;
+type ServerMessage = TranscriptionMessage | StatusMessage | ErrorMessage | SpeakerRegisteredMessage;
 type ClientMessage = AudioMessage | ControlMessage;
 
 // WebSocket Handler class (to be implemented)
@@ -70,10 +66,7 @@ class WebSocketHandler {
 	private sendCallback: (message: ServerMessage) => void;
 	private transcriptionCallback?: (chunk: Buffer) => void;
 
-	constructor(
-		sessionId: string,
-		sendCallback: (message: ServerMessage) => void
-	) {
+	constructor(sessionId: string, sendCallback: (message: ServerMessage) => void) {
 		this.sessionId = sessionId;
 		this.sendCallback = sendCallback;
 	}
@@ -334,9 +327,7 @@ describe('WebSocketHandler', () => {
 	describe('control messages', () => {
 		describe('start action', () => {
 			it('should start transcription and send active status', () => {
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'start' })
-				);
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'start' }));
 
 				expect(sendMock).toHaveBeenCalledWith({
 					type: 'status',
@@ -347,14 +338,10 @@ describe('WebSocketHandler', () => {
 			});
 
 			it('should reject start when already active', () => {
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'start' })
-				);
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'start' }));
 				sendMock.mockClear();
 
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'start' })
-				);
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'start' }));
 
 				expect(sendMock).toHaveBeenCalledWith({
 					type: 'error',
@@ -367,14 +354,10 @@ describe('WebSocketHandler', () => {
 
 		describe('stop action', () => {
 			it('should stop transcription and send ended status', () => {
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'start' })
-				);
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'start' }));
 				sendMock.mockClear();
 
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'stop' })
-				);
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'stop' }));
 
 				expect(sendMock).toHaveBeenCalledWith({
 					type: 'status',
@@ -387,14 +370,10 @@ describe('WebSocketHandler', () => {
 
 		describe('pause action', () => {
 			it('should pause active transcription', () => {
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'start' })
-				);
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'start' }));
 				sendMock.mockClear();
 
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'pause' })
-				);
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'pause' }));
 
 				expect(sendMock).toHaveBeenCalledWith({
 					type: 'status',
@@ -405,9 +384,7 @@ describe('WebSocketHandler', () => {
 			});
 
 			it('should reject pause when not active', () => {
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'pause' })
-				);
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'pause' }));
 
 				expect(sendMock).toHaveBeenCalledWith({
 					type: 'error',
@@ -420,17 +397,11 @@ describe('WebSocketHandler', () => {
 
 		describe('resume action', () => {
 			it('should resume paused transcription', () => {
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'start' })
-				);
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'pause' })
-				);
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'start' }));
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'pause' }));
 				sendMock.mockClear();
 
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'resume' })
-				);
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'resume' }));
 
 				expect(sendMock).toHaveBeenCalledWith({
 					type: 'status',
@@ -441,14 +412,10 @@ describe('WebSocketHandler', () => {
 			});
 
 			it('should reject resume when already active', () => {
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'start' })
-				);
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'start' }));
 				sendMock.mockClear();
 
-				handler.handleMessage(
-					JSON.stringify({ type: 'control', action: 'resume' })
-				);
+				handler.handleMessage(JSON.stringify({ type: 'control', action: 'resume' }));
 
 				expect(sendMock).toHaveBeenCalledWith({
 					type: 'error',
@@ -460,9 +427,7 @@ describe('WebSocketHandler', () => {
 		});
 
 		it('should reject unknown control actions', () => {
-			handler.handleMessage(
-				JSON.stringify({ type: 'control', action: 'invalid' })
-			);
+			handler.handleMessage(JSON.stringify({ type: 'control', action: 'invalid' }));
 
 			expect(sendMock).toHaveBeenCalledWith({
 				type: 'error',
@@ -492,9 +457,7 @@ describe('WebSocketHandler', () => {
 		});
 
 		it('should require audio data', () => {
-			handler.handleMessage(
-				JSON.stringify({ type: 'control', action: 'start' })
-			);
+			handler.handleMessage(JSON.stringify({ type: 'control', action: 'start' }));
 			sendMock.mockClear();
 
 			handler.handleMessage(
@@ -516,9 +479,7 @@ describe('WebSocketHandler', () => {
 			const transcriptionCallback = vi.fn();
 			handler.setTranscriptionCallback(transcriptionCallback);
 
-			handler.handleMessage(
-				JSON.stringify({ type: 'control', action: 'start' })
-			);
+			handler.handleMessage(JSON.stringify({ type: 'control', action: 'start' }));
 
 			const testAudio = Buffer.from([0x00, 0x01, 0x02, 0x03]);
 			handler.handleMessage(
@@ -533,9 +494,7 @@ describe('WebSocketHandler', () => {
 		});
 
 		it('should handle empty audio data', () => {
-			handler.handleMessage(
-				JSON.stringify({ type: 'control', action: 'start' })
-			);
+			handler.handleMessage(JSON.stringify({ type: 'control', action: 'start' }));
 			sendMock.mockClear();
 
 			handler.handleMessage(
@@ -607,9 +566,7 @@ describe('WebSocketHandler', () => {
 
 	describe('cleanup', () => {
 		it('should deactivate on close', () => {
-			handler.handleMessage(
-				JSON.stringify({ type: 'control', action: 'start' })
-			);
+			handler.handleMessage(JSON.stringify({ type: 'control', action: 'start' }));
 			expect(handler.active).toBe(true);
 
 			handler.close();

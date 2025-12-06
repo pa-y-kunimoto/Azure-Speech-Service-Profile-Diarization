@@ -22,7 +22,7 @@ class MockMediaRecorder {
 
 	constructor(
 		public stream: MediaStream,
-		public options?: MediaRecorderOptions,
+		public options?: MediaRecorderOptions
 	) {}
 
 	start(timeslice?: number) {
@@ -85,7 +85,10 @@ const mockAudioContext = {
 		connect: vi.fn(),
 	})),
 };
-vi.stubGlobal('AudioContext', vi.fn(() => mockAudioContext));
+vi.stubGlobal(
+	'AudioContext',
+	vi.fn(() => mockAudioContext)
+);
 
 // Mock wavEncoder
 vi.mock('~/utils/wavEncoder', () => ({

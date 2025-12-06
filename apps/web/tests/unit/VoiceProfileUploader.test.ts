@@ -3,7 +3,7 @@
  * TDD: Write tests first, verify behavior
  */
 
-import { mount, flushPromises } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import VoiceProfileUploader from '../../components/VoiceProfileUploader.vue';
 
@@ -257,11 +257,11 @@ describe('VoiceProfileUploader', () => {
 
 			// Find submit button by text content
 			const allButtons = wrapper.findAll('button');
-			const submitButton = allButtons.find(btn => btn.text().includes('プロフィールを登録'));
+			const submitButton = allButtons.find((btn) => btn.text().includes('プロフィールを登録'));
 			expect(submitButton).toBeDefined();
 
 			// Submit
-			await submitButton!.trigger('click');
+			await submitButton?.trigger('click');
 			await flushPromises();
 			await wrapper.vm.$nextTick();
 			await flushPromises();
@@ -298,11 +298,11 @@ describe('VoiceProfileUploader', () => {
 
 			// Find submit button by text content
 			const allButtons = wrapper.findAll('button');
-			const submitButton = allButtons.find(btn => btn.text().includes('プロフィールを登録'));
+			const submitButton = allButtons.find((btn) => btn.text().includes('プロフィールを登録'));
 			expect(submitButton).toBeDefined();
 
 			// Submit
-			await submitButton!.trigger('click');
+			await submitButton?.trigger('click');
 			await flushPromises();
 			await wrapper.vm.$nextTick();
 			await flushPromises();
@@ -311,7 +311,7 @@ describe('VoiceProfileUploader', () => {
 				expect.objectContaining({
 					name: 'Test Speaker',
 					source: 'upload',
-				}),
+				})
 			);
 		});
 
@@ -347,11 +347,11 @@ describe('VoiceProfileUploader', () => {
 
 			// Find submit button by text content
 			const allButtons = wrapper.findAll('button');
-			const submitButton = allButtons.find(btn => btn.text().includes('プロフィールを登録'));
+			const submitButton = allButtons.find((btn) => btn.text().includes('プロフィールを登録'));
 			expect(submitButton).toBeDefined();
 
 			// Submit
-			await submitButton!.trigger('click');
+			await submitButton?.trigger('click');
 			await flushPromises();
 			await wrapper.vm.$nextTick();
 			await flushPromises();
@@ -429,7 +429,9 @@ describe('VoiceProfileUploader', () => {
 
 			// Find and click clear button (the X button next to file info)
 			const clearButtons = wrapper.findAll('button[type="button"]');
-			const clearButton = clearButtons.find((btn) => btn.find('svg path[d*="M6 18L18 6"]').exists());
+			const clearButton = clearButtons.find((btn) =>
+				btn.find('svg path[d*="M6 18L18 6"]').exists()
+			);
 			if (clearButton) {
 				await clearButton.trigger('click');
 				await wrapper.vm.$nextTick();

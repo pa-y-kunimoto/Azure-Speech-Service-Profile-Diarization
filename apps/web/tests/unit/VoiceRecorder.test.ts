@@ -149,7 +149,9 @@ describe('VoiceRecorder', () => {
 			// The start button is a circle button with microphone icon
 			const buttons = wrapper.findAll('button');
 			// Find button with w-16 class (start recording button)
-			const startButton = buttons.find((btn) => btn.classes().includes('w-16') || btn.html().includes('M12 14c1.66'));
+			const startButton = buttons.find(
+				(btn) => btn.classes().includes('w-16') || btn.html().includes('M12 14c1.66')
+			);
 			expect(startButton).toBeTruthy();
 		});
 
@@ -158,7 +160,9 @@ describe('VoiceRecorder', () => {
 			await flushPromises();
 
 			const buttons = wrapper.findAll('button');
-			const startButton = buttons.find((btn) => btn.text().includes('録音開始') || btn.html().includes('microphone'));
+			const startButton = buttons.find(
+				(btn) => btn.text().includes('録音開始') || btn.html().includes('microphone')
+			);
 
 			if (startButton) {
 				await startButton.trigger('click');

@@ -12,6 +12,10 @@ services:
       - SPEECH_REGION=${SPEECH_REGION}
       - SPEECH_ENDPOINT=${SPEECH_ENDPOINT}
       - USE_MOCK_SPEECH=${USE_MOCK_SPEECH:-false}
+      # Session timeout configuration (minutes)
+      # 0 = disabled/unlimited, 1-120 = minutes before timeout
+      - SESSION_TIMEOUT_MINUTES=${SESSION_TIMEOUT_MINUTES:-15}
+      - SILENCE_TIMEOUT_MINUTES=${SILENCE_TIMEOUT_MINUTES:-5}
     ports:
       - "${API_PORT:-3001}:3001"
     networks:

@@ -9,8 +9,8 @@
  * - Session lifecycle (create, active, end)
  */
 
-import { ref, computed } from 'vue';
-import type { SpeakerMapping, RegistrationStatus } from '@speaker-diarization/core';
+import type { RegistrationStatus, SpeakerMapping } from '@speaker-diarization/core';
+import { computed, ref } from 'vue';
 import { useApiFetch } from './useApiFetch';
 
 // Session status type matching API schema

@@ -5,9 +5,9 @@
  * Shows recognized text with speaker identification.
  */
 
-import { describe, it, expect} from 'vitest';
 import { mount } from '@vue/test-utils';
-import { defineComponent, ref, h } from 'vue';
+import { describe, expect, it } from 'vitest';
+import { defineComponent, h, ref } from 'vue';
 
 // Mock Utterance type matching core package
 interface Utterance {
@@ -104,11 +104,7 @@ const TranscriptView = defineComponent({
 								formatTime(utterance.endOffsetSeconds),
 							]),
 						]),
-						h(
-							'p',
-							{ class: 'utterance-text text-gray-900 mt-1' },
-							utterance.text
-						),
+						h('p', { class: 'utterance-text text-gray-900 mt-1' }, utterance.text),
 						h(
 							'span',
 							{ class: 'confidence text-xs text-gray-400 mt-1 block' },
@@ -130,7 +126,10 @@ const TranscriptView = defineComponent({
 								props.interimSpeaker &&
 									h(
 										'span',
-										{ class: 'speaker-badge px-2 py-1 rounded text-sm font-medium bg-yellow-100 text-yellow-800 mr-2' },
+										{
+											class:
+												'speaker-badge px-2 py-1 rounded text-sm font-medium bg-yellow-100 text-yellow-800 mr-2',
+										},
 										props.interimSpeaker
 									),
 								h('span', { class: 'text-gray-700 italic' }, props.interimText),

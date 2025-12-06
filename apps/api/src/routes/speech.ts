@@ -5,7 +5,7 @@
  * - POST /api/session/:sessionId/register-profile - Register a voice profile
  */
 
-import { Router, type Request, type Response, type NextFunction } from 'express';
+import { type NextFunction, type Request, type Response, Router } from 'express';
 import { speechService } from '../services/speechService.js';
 
 export const speechRouter = Router();
@@ -21,13 +21,13 @@ speechRouter.post(
 			const { sessionId } = req.params;
 			const { profileId, profileName, audioBase64 } = req.body;
 
-            if (!sessionId) {
-                res.status(400).json({
-                    error: 'INVALID_REQUEST',
-                    message: 'sessionId is required',
-                });
-                return;
-            }
+			if (!sessionId) {
+				res.status(400).json({
+					error: 'INVALID_REQUEST',
+					message: 'sessionId is required',
+				});
+				return;
+			}
 
 			// Check session exists
 			const session = await speechService.getSession(sessionId);

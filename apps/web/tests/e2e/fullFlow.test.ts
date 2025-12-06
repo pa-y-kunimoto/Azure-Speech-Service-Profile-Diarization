@@ -8,7 +8,7 @@
  * 4. Session results view
  */
 
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 test.describe('Speaker Diarization Full Flow', () => {
 	test.beforeEach(async ({ page }) => {
@@ -227,9 +227,11 @@ test.describe('Error Handling', () => {
 			});
 
 			// Should show validation error
-			await expect(page.getByText(/対応していない/)).toBeVisible().catch(() => {
-				// If error message not found, the file input might have rejected it
-			});
+			await expect(page.getByText(/対応していない/))
+				.toBeVisible()
+				.catch(() => {
+					// If error message not found, the file input might have rejected it
+				});
 		}
 	});
 

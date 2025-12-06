@@ -294,7 +294,12 @@ describe('useDiarizationSession', () => {
 				status: 'active',
 				createdAt: new Date().toISOString(),
 				speakerMappings: [
-					{ speakerId: 'Guest-1', profileId: 'profile-1', profileName: '田中さん', isRegistered: true },
+					{
+						speakerId: 'Guest-1',
+						profileId: 'profile-1',
+						profileName: '田中さん',
+						isRegistered: true,
+					},
 				],
 			});
 

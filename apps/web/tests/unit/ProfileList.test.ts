@@ -4,9 +4,9 @@
  */
 
 import type { VoiceProfile } from '@speaker-diarization/core';
-import { mount, flushPromises } from '@vue/test-utils';
-import { ref } from 'vue';
+import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
 import ProfileList from '../../components/ProfileList.vue';
 
 // Mock profiles - must be defined before vi.mock
@@ -157,7 +157,7 @@ describe('ProfileList', () => {
 				await clearButton.trigger('click');
 
 				expect(mockConfirm).toHaveBeenCalledWith(
-					expect.stringContaining('すべてのプロフィールを削除'),
+					expect.stringContaining('すべてのプロフィールを削除')
 				);
 				expect(mockClearAllProfiles).toHaveBeenCalled();
 			}
@@ -198,7 +198,7 @@ describe('ProfileList', () => {
 			expect(listItems.length).toBe(2);
 
 			// Each item should have date information
-            for (const item of listItems) {
+			for (const item of listItems) {
 				expect(item.text()).toMatch(/月.*日|:/);
 			}
 		});

@@ -11,11 +11,11 @@ import type { NitroFetchOptions } from 'nitropack';
 import { useNuxtApp } from 'nuxt/app';
 
 export function useApiFetch() {
-	const {$config} = useNuxtApp();
-	
+	const { $config } = useNuxtApp();
+
 	// SSR時は内部URL、クライアント時は外部URLを使用
-	const baseURL = import.meta.client 
-		? ($config.public.apiExternalUrl || $config.public.apiBaseUrl)
+	const baseURL = import.meta.client
+		? $config.public.apiExternalUrl || $config.public.apiBaseUrl
 		: $config.public.apiBaseUrl;
 
 	/**

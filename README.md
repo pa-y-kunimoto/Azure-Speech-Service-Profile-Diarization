@@ -59,6 +59,16 @@ SPEECH_ENDPOINT=https://your-region.api.cognitive.microsoft.com/
 
 # アプリケーション設定
 NODE_ENV=development
+
+# セッションタイムアウト設定（オプション）
+# SESSION_TIMEOUT_MINUTES: セッション全体のタイムアウト（分）
+#   デフォルト: 15分
+#   範囲: 1-120分、0 = 無制限
+# SILENCE_TIMEOUT_MINUTES: 無音検出タイムアウト（分）
+#   デフォルト: 5分
+#   範囲: 1-120分、0 = 無効
+SESSION_TIMEOUT_MINUTES=15
+SILENCE_TIMEOUT_MINUTES=5
 ```
 
 ## 💻 開発

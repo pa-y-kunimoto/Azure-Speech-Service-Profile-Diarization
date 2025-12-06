@@ -107,7 +107,7 @@ export class DiarizationClient {
 		// Convert to ArrayBuffer to avoid SharedArrayBuffer type issues
 		const audioBuffer = new ArrayBuffer(audioData.byteLength);
 		new Uint8Array(audioBuffer).set(audioData);
-		
+
 		const profile: LocalVoiceProfile = {
 			profileId,
 			displayName: profileId,
@@ -140,10 +140,7 @@ export class DiarizationClient {
 				const audioConfig = SpeechSDK.AudioConfig.fromStreamInput(this.pushStream);
 
 				// Create conversation transcriber
-				this.transcriber = new SpeechSDK.ConversationTranscriber(
-					this.speechConfig,
-					audioConfig
-				);
+				this.transcriber = new SpeechSDK.ConversationTranscriber(this.speechConfig, audioConfig);
 
 				// Set up event handlers
 				this.transcriber.transcribing = (_, e) => {
@@ -230,9 +227,7 @@ export class DiarizationClient {
 	 */
 	validateAudioFormat(format: AudioFormat): boolean {
 		// Azure Speech Service requires 16kHz, 16-bit, mono
-		return (
-			format.sampleRate === 16000 && format.bitsPerSample === 16 && format.channels === 1
-		);
+		return format.sampleRate === 16000 && format.bitsPerSample === 16 && format.channels === 1;
 	}
 
 	/**
@@ -345,7 +340,7 @@ export class DiarizationClient {
 }
 
 function toArrayBuffer(u8: Uint8Array): ArrayBuffer {
-  const buffer = new ArrayBuffer(u8.byteLength);
-  new Uint8Array(buffer).set(u8);
-  return buffer;
+	const buffer = new ArrayBuffer(u8.byteLength);
+	new Uint8Array(buffer).set(u8);
+	return buffer;
 }

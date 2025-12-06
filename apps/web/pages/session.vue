@@ -22,7 +22,13 @@
         <h3 class="text-lg font-semibold text-gray-900">
           リアルタイム認識
         </h3>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
+          <!-- Session Timer -->
+          <SessionTimer
+            v-if="recognition.isActive.value"
+            :session-timeout-remaining="recognition.timeoutState.value.sessionTimeoutRemaining"
+            :silence-timeout-remaining="recognition.timeoutState.value.silenceTimeoutRemaining"
+          />
           <span 
             :class="[
               'px-2 py-1 rounded text-sm font-medium',
@@ -224,14 +230,21 @@
         セッション結果を表示 ({{ recognition.utterances.value.length }} 発話)
       </button>
     </div>
+
+    <!-- Timeout Warning Modal -->
+    <TimeoutWarningModal
+      :warning="recognition.timeoutState.value.warning"
+      @extend="handleExtendSession"
+      @dismiss="handleDismissWarning"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue';
+import type { SpeakerMapping } from '@speaker-diarization/core';
+import { computed, onUnmounted, ref } from 'vue';
 import { useRealtimeRecognition } from '~/composables/useRealtimeRecognition';
 import { useVoiceProfile } from '~/composables/useVoiceProfile';
-import type { SpeakerMapping } from '@speaker-diarization/core';
 
 // Session state
 const sessionId = ref<string | null>(null);
@@ -241,43 +254,45 @@ const { profiles: availableProfiles } = useVoiceProfile();
 
 // Initialize recognition composable when session starts
 let recognition = useRealtimeRecognition({
-  sessionId: 'placeholder'
+	sessionId: 'placeholder',
 });
 
 // Manual speaker mapping state
 const showMappingDialog = ref(false);
 const mappingDialogSpeakerId = ref('');
 const selectedMappingProfile = ref<string | null>(null);
-const manualSpeakerMappings = ref<Map<string, { profileId: string; profileName: string }>>(new Map());
+const manualSpeakerMappings = ref<Map<string, { profileId: string; profileName: string }>>(
+	new Map()
+);
 
 // Status display configuration
 const statusLabels: Record<string, string> = {
-  idle: '待機中',
-  connecting: '接続中...',
-  connected: '接続済み',
-  active: '認識中',
-  paused: '一時停止',
-  error: 'エラー',
-  ended: '終了',
+	idle: '待機中',
+	connecting: '接続中...',
+	connected: '接続済み',
+	active: '認識中',
+	paused: '一時停止',
+	error: 'エラー',
+	ended: '終了',
 };
 
 const statusColors: Record<string, string> = {
-  idle: 'bg-gray-100 text-gray-800',
-  connecting: 'bg-yellow-100 text-yellow-800',
-  connected: 'bg-blue-100 text-blue-800',
-  active: 'bg-green-100 text-green-800',
-  paused: 'bg-orange-100 text-orange-800',
-  error: 'bg-red-100 text-red-800',
-  ended: 'bg-gray-100 text-gray-800',
+	idle: 'bg-gray-100 text-gray-800',
+	connecting: 'bg-yellow-100 text-yellow-800',
+	connected: 'bg-blue-100 text-blue-800',
+	active: 'bg-green-100 text-green-800',
+	paused: 'bg-orange-100 text-orange-800',
+	error: 'bg-red-100 text-red-800',
+	ended: 'bg-gray-100 text-gray-800',
 };
 
 /**
  * Profile data for enrollment
  */
 interface EnrollmentProfile {
-  profileId: string;
-  profileName: string;
-  audioBase64: string;
+	profileId: string;
+	profileName: string;
+	audioBase64: string;
 }
 
 // Enrollment profiles received from SessionControl
@@ -287,31 +302,38 @@ const enrollmentProfiles = ref<EnrollmentProfile[]>([]);
  * Handle session started event from SessionControl
  */
 function handleSessionStarted(id: string, profiles: EnrollmentProfile[]) {
-  sessionId.value = id;
-  sessionStartTime.value = Date.now();
-  showResults.value = false;
-  selectedSpeaker.value = null;
-  enrollmentProfiles.value = profiles;
-  
-  // Reinitialize recognition with correct session ID
-  recognition = useRealtimeRecognition({
-    sessionId: id,
-    onError: (error) => {
-      console.error('Recognition error:', error);
-    },
-  });
+	sessionId.value = id;
+	sessionStartTime.value = Date.now();
+	showResults.value = false;
+	selectedSpeaker.value = null;
+	enrollmentProfiles.value = profiles;
+
+	// Reinitialize recognition with correct session ID
+	recognition = useRealtimeRecognition({
+		sessionId: id,
+		onError: (error) => {
+			console.error('Recognition error:', error);
+		},
+		onTimeoutWarning: (warning) => {
+			console.log('Timeout warning:', warning);
+		},
+		onTimeoutEnded: (reason, message) => {
+			console.log('Session ended due to timeout:', reason, message);
+			handleSessionEnded();
+		},
+	});
 }
 
 /**
  * Handle session ended event from SessionControl
  */
 function handleSessionEnded() {
-  recognition.disconnect();
-  sessionId.value = null;
-  // Show results after session ends if there are utterances
-  if (recognition.utterances.value.length > 0) {
-    showResults.value = true;
-  }
+	recognition.disconnect();
+	sessionId.value = null;
+	// Show results after session ends if there are utterances
+	if (recognition.utterances.value.length > 0) {
+		showResults.value = true;
+	}
 }
 
 /**
@@ -319,42 +341,57 @@ function handleSessionEnded() {
  * First enrolls profiles to learn speakers, then starts mic capture
  */
 async function startRecognition() {
-  try {
-    // If we have enrollment profiles, enroll them first
-    // Enrollment also starts transcription, so we don't need to call start() separately
-    if (enrollmentProfiles.value.length > 0) {
-      console.log('Enrolling profiles before starting recognition...');
-      await recognition.enrollProfiles(enrollmentProfiles.value);
-      // Clear enrollment profiles after successful enrollment
-      enrollmentProfiles.value = [];
-      // Start microphone capture only (transcription is already started by enroll)
-      await recognition.startMicrophoneCapture();
-    } else {
-      // No profiles to enroll, start normally
-      await recognition.start();
-    }
-  } catch (error) {
-    console.error('Failed to start recognition:', error);
-  }
+	try {
+		// If we have enrollment profiles, enroll them first
+		// Enrollment also starts transcription, so we don't need to call start() separately
+		if (enrollmentProfiles.value.length > 0) {
+			console.log('Enrolling profiles before starting recognition...');
+			await recognition.enrollProfiles(enrollmentProfiles.value);
+			// Clear enrollment profiles after successful enrollment
+			enrollmentProfiles.value = [];
+			// Start microphone capture only (transcription is already started by enroll)
+			await recognition.startMicrophoneCapture();
+		} else {
+			// No profiles to enroll, start normally
+			await recognition.start();
+		}
+	} catch (error) {
+		console.error('Failed to start recognition:', error);
+	}
 }
 
 /**
  * Stop real-time recognition
  */
 async function stopRecognition() {
-  try {
-    await recognition.stop();
-  } catch (error) {
-    console.error('Failed to stop recognition:', error);
-  }
+	try {
+		await recognition.stop();
+	} catch (error) {
+		console.error('Failed to stop recognition:', error);
+	}
+}
+
+/**
+ * Extend session timeout
+ */
+function handleExtendSession() {
+	recognition.extendSession();
+}
+
+/**
+ * Dismiss timeout warning
+ */
+function handleDismissWarning() {
+	// Warning will be cleared automatically when timeout state updates
+	// or when extendSession is called
 }
 
 /**
  * Handle speaker badge click
  */
 function handleSpeakerClick(speakerId: string, speakerName: string) {
-  console.log('Speaker clicked:', speakerId, speakerName);
-  // Could open a dialog to rename/map the speaker
+	console.log('Speaker clicked:', speakerId, speakerName);
+	// Could open a dialog to rename/map the speaker
 }
 
 // Session results state
@@ -365,90 +402,94 @@ const speakerMappings = ref<SpeakerMapping[]>([]);
 
 // Calculate session duration
 const sessionDurationSeconds = computed(() => {
-  if (!sessionStartTime.value) return 0;
-  const now = Date.now();
-  return Math.floor((now - sessionStartTime.value) / 1000);
+	if (!sessionStartTime.value) return 0;
+	const now = Date.now();
+	return Math.floor((now - sessionStartTime.value) / 1000);
 });
 
 // Utterances with speaker mappings applied (both automatic and manual)
 const mappedUtterances = computed(() => {
-  return recognition.utterances.value.map(utterance => {
-    // First check manual mappings
-    const manualMapping = manualSpeakerMappings.value.get(utterance.speakerId);
-    if (manualMapping) {
-      return {
-        ...utterance,
-        speakerName: manualMapping.profileName,
-      };
-    }
-    
-    // Then check automatic mappings from enrollment
-    const autoMapping = recognition.speakerMappings.value.find(m => m.speakerId === utterance.speakerId);
-    if (autoMapping) {
-      return {
-        ...utterance,
-        speakerName: autoMapping.profileName,
-      };
-    }
-    
-    return utterance;
-  });
+	return recognition.utterances.value.map((utterance) => {
+		// First check manual mappings
+		const manualMapping = manualSpeakerMappings.value.get(utterance.speakerId);
+		if (manualMapping) {
+			return {
+				...utterance,
+				speakerName: manualMapping.profileName,
+			};
+		}
+
+		// Then check automatic mappings from enrollment
+		const autoMapping = recognition.speakerMappings.value.find(
+			(m) => m.speakerId === utterance.speakerId
+		);
+		if (autoMapping) {
+			return {
+				...utterance,
+				speakerName: autoMapping.profileName,
+			};
+		}
+
+		return utterance;
+	});
 });
 
 // Interim speaker with mapping applied (both automatic and manual)
 const mappedInterimSpeaker = computed(() => {
-  const interimSpeakerId = recognition.interimSpeaker.value;
-  if (interimSpeakerId) {
-    // First check manual mappings
-    const manualMapping = manualSpeakerMappings.value.get(interimSpeakerId);
-    if (manualMapping) {
-      return manualMapping.profileName;
-    }
-    
-    // Then check automatic mappings from enrollment
-    const autoMapping = recognition.speakerMappings.value.find(m => m.speakerId === interimSpeakerId);
-    if (autoMapping) {
-      return autoMapping.profileName;
-    }
-  }
-  return recognition.interimSpeaker.value;
+	const interimSpeakerId = recognition.interimSpeaker.value;
+	if (interimSpeakerId) {
+		// First check manual mappings
+		const manualMapping = manualSpeakerMappings.value.get(interimSpeakerId);
+		if (manualMapping) {
+			return manualMapping.profileName;
+		}
+
+		// Then check automatic mappings from enrollment
+		const autoMapping = recognition.speakerMappings.value.find(
+			(m) => m.speakerId === interimSpeakerId
+		);
+		if (autoMapping) {
+			return autoMapping.profileName;
+		}
+	}
+	return recognition.interimSpeaker.value;
 });
 
 // Transform utterances to match SpeakerTimeline's expected type
 const transformedUtterances = computed(() => {
-  return mappedUtterances.value.map(utterance => ({
-    ...utterance,
-    sessionId: sessionId.value || '',
-    azureSpeakerId: utterance.speakerId,
-    startOffsetSeconds: utterance.offsetMs / 1000,
-    endOffsetSeconds: (utterance.offsetMs / 1000) + 3, // Approximate duration
-    durationSeconds: 3, // Approximate duration
-    recognizedAt: utterance.timestamp,
-    createdAt: new Date(utterance.timestamp),
-    updatedAt: new Date(utterance.timestamp),
-  }));
+	return mappedUtterances.value.map((utterance) => ({
+		...utterance,
+		sessionId: sessionId.value || '',
+		azureSpeakerId: utterance.speakerId,
+		startOffsetSeconds: utterance.offsetMs / 1000,
+		endOffsetSeconds: utterance.offsetMs / 1000 + 3, // Approximate duration
+		durationSeconds: 3, // Approximate duration
+		recognizedAt: utterance.timestamp,
+		createdAt: new Date(utterance.timestamp),
+		updatedAt: new Date(utterance.timestamp),
+	}));
 });
 
 /**
  * Toggle results section visibility
  */
 function toggleResults() {
-  showResults.value = !showResults.value;
+	showResults.value = !showResults.value;
 }
 
 /**
  * Handle speaker selection from timeline
  */
 function handleTimelineSpeakerSelect(speakerId: string) {
-  selectedSpeaker.value = speakerId === selectedSpeaker.value ? null : speakerId;
+	selectedSpeaker.value = speakerId === selectedSpeaker.value ? null : speakerId;
 }
 
 /**
  * Handle utterance click from timeline
  */
 function handleUtteranceClick(utterance: { id: string; text: string; speakerName: string }) {
-  console.log('Utterance clicked:', utterance);
-  // Could scroll to or highlight the utterance
+	console.log('Utterance clicked:', utterance);
+	// Could scroll to or highlight the utterance
 }
 
 /**
@@ -456,67 +497,67 @@ function handleUtteranceClick(utterance: { id: string; text: string; speakerName
  * Checks both automatic mappings from enrollment and manual mappings
  */
 function getMappedProfile(speakerId: string): string | null {
-  // First check manual mappings (takes priority)
-  const manualMapping = manualSpeakerMappings.value.get(speakerId);
-  if (manualMapping) {
-    return manualMapping.profileName;
-  }
-  
-  // Then check automatic mappings from enrollment
-  const autoMapping = recognition.speakerMappings.value.find(m => m.speakerId === speakerId);
-  if (autoMapping) {
-    return autoMapping.profileName;
-  }
-  
-  return null;
+	// First check manual mappings (takes priority)
+	const manualMapping = manualSpeakerMappings.value.get(speakerId);
+	if (manualMapping) {
+		return manualMapping.profileName;
+	}
+
+	// Then check automatic mappings from enrollment
+	const autoMapping = recognition.speakerMappings.value.find((m) => m.speakerId === speakerId);
+	if (autoMapping) {
+		return autoMapping.profileName;
+	}
+
+	return null;
 }
 
 /**
  * Open the speaker mapping dialog
  */
 function openSpeakerMappingDialog(speakerId: string) {
-  mappingDialogSpeakerId.value = speakerId;
-  selectedMappingProfile.value = null;
-  showMappingDialog.value = true;
+	mappingDialogSpeakerId.value = speakerId;
+	selectedMappingProfile.value = null;
+	showMappingDialog.value = true;
 }
 
 /**
  * Close the speaker mapping dialog
  */
 function closeMappingDialog() {
-  showMappingDialog.value = false;
-  mappingDialogSpeakerId.value = '';
-  selectedMappingProfile.value = null;
+	showMappingDialog.value = false;
+	mappingDialogSpeakerId.value = '';
+	selectedMappingProfile.value = null;
 }
 
 /**
  * Confirm the speaker mapping
  */
 function confirmSpeakerMapping() {
-  if (!selectedMappingProfile.value || !mappingDialogSpeakerId.value) {
-    return;
-  }
-  
-  // Find the selected profile
-  const profile = availableProfiles.value.find(p => p.id === selectedMappingProfile.value);
-  if (!profile) {
-    return;
-  }
-  
-  // Save the mapping locally
-  manualSpeakerMappings.value.set(mappingDialogSpeakerId.value, {
-    profileId: profile.id,
-    profileName: profile.name,
-  });
-  
-  // Call the recognition mapSpeaker function to update the backend
-  recognition.mapSpeaker(mappingDialogSpeakerId.value, profile.id, profile.name);
-  
-  closeMappingDialog();
+	if (!selectedMappingProfile.value || !mappingDialogSpeakerId.value) {
+		return;
+	}
+
+	// Find the selected profile
+	const profile = availableProfiles.value.find((p) => p.id === selectedMappingProfile.value);
+	if (!profile) {
+		return;
+	}
+
+	// Save the mapping locally
+	manualSpeakerMappings.value.set(mappingDialogSpeakerId.value, {
+		profileId: profile.id,
+		profileName: profile.name,
+	});
+
+	// Call the recognition mapSpeaker function to update the backend
+	recognition.mapSpeaker(mappingDialogSpeakerId.value, profile.id, profile.name);
+
+	closeMappingDialog();
 }
 
 // Cleanup on unmount
 onUnmounted(() => {
-  recognition.disconnect();
+	recognition.disconnect();
 });
 </script>

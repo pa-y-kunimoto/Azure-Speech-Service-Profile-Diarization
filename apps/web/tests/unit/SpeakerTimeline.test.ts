@@ -5,8 +5,8 @@
  * Shows session results with utterances grouped by speaker in timeline format.
  */
 
-import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { describe, expect, it } from 'vitest';
 import SpeakerTimeline from '../../components/SpeakerTimeline.vue';
 
 // Mock Utterance type matching core package
@@ -171,8 +171,18 @@ describe('SpeakerTimeline', () => {
 
 		it('should filter utterances when speaker is selected', () => {
 			const utterances = [
-				createUtterance({ id: 'utt-1', azureSpeakerId: 'Guest-1', speakerName: '田中さん', text: '田中の発話' }),
-				createUtterance({ id: 'utt-2', azureSpeakerId: 'Guest-2', speakerName: '鈴木さん', text: '鈴木の発話' }),
+				createUtterance({
+					id: 'utt-1',
+					azureSpeakerId: 'Guest-1',
+					speakerName: '田中さん',
+					text: '田中の発話',
+				}),
+				createUtterance({
+					id: 'utt-2',
+					azureSpeakerId: 'Guest-2',
+					speakerName: '鈴木さん',
+					text: '鈴木の発話',
+				}),
 			];
 
 			const wrapper = mount(SpeakerTimeline, {
@@ -363,7 +373,9 @@ describe('SpeakerTimeline', () => {
 			});
 
 			expect(wrapper.find('[data-testid="speaker-card-Guest-1"]').classes()).toContain('ring-2');
-			expect(wrapper.find('[data-testid="speaker-card-Guest-2"]').classes()).not.toContain('ring-2');
+			expect(wrapper.find('[data-testid="speaker-card-Guest-2"]').classes()).not.toContain(
+				'ring-2'
+			);
 		});
 	});
 
@@ -479,9 +491,24 @@ describe('SpeakerTimeline', () => {
 	describe('speaker ranking', () => {
 		it('should sort speakers by total duration (descending)', () => {
 			const utterances = [
-				createUtterance({ id: 'utt-1', azureSpeakerId: 'Guest-1', speakerName: '田中さん', durationSeconds: 5 }),
-				createUtterance({ id: 'utt-2', azureSpeakerId: 'Guest-2', speakerName: '鈴木さん', durationSeconds: 30 }),
-				createUtterance({ id: 'utt-3', azureSpeakerId: 'Guest-3', speakerName: '佐藤さん', durationSeconds: 15 }),
+				createUtterance({
+					id: 'utt-1',
+					azureSpeakerId: 'Guest-1',
+					speakerName: '田中さん',
+					durationSeconds: 5,
+				}),
+				createUtterance({
+					id: 'utt-2',
+					azureSpeakerId: 'Guest-2',
+					speakerName: '鈴木さん',
+					durationSeconds: 30,
+				}),
+				createUtterance({
+					id: 'utt-3',
+					azureSpeakerId: 'Guest-3',
+					speakerName: '佐藤さん',
+					durationSeconds: 15,
+				}),
 			];
 
 			const wrapper = mount(SpeakerTimeline, {

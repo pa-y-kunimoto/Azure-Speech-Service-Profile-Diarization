@@ -6,9 +6,9 @@
  * - POST /api/session/{id}/register-profile - Register voice profile with Azure
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import request from 'supertest';
 import express from 'express';
+import request from 'supertest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the speech service before importing routes
 vi.mock('../../src/services/speechService.js', () => ({
@@ -18,9 +18,9 @@ vi.mock('../../src/services/speechService.js', () => ({
 	},
 }));
 
+import { errorHandler } from '../../src/middleware/errorHandler.js';
 // Import after mocking
 import { speechRouter } from '../../src/routes/speech.js';
-import { errorHandler } from '../../src/middleware/errorHandler.js';
 import { speechService } from '../../src/services/speechService.js';
 
 const app = express();
@@ -163,9 +163,7 @@ describe('Register Profile API Contract Tests', () => {
 				speakerMappings: [],
 				createdAt: new Date().toISOString(),
 			});
-			vi.mocked(speechService.registerProfile).mockRejectedValue(
-				new Error('Invalid audio data')
-			);
+			vi.mocked(speechService.registerProfile).mockRejectedValue(new Error('Invalid audio data'));
 
 			const response = await request(app)
 				.post('/api/session/session-123/register-profile')
