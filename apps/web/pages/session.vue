@@ -88,11 +88,11 @@
       </div>
 
       <!-- Automatic Speaker Mappings (from enrollment) -->
-      <div v-if="recognitionSpeakerMappings.length > 0" class="mb-4">
+      <div v-if="recognitionRef.speakerMappings.value.length > 0" class="mb-4">
         <h4 class="text-sm font-medium text-gray-700 mb-2">自動マッピング済みプロフィール</h4>
         <div class="flex flex-wrap gap-2">
           <span
-            v-for="mapping in recognitionSpeakerMappings"
+            v-for="mapping in recognitionRef.speakerMappings.value"
             :key="mapping.speakerId"
             class="px-3 py-1 rounded text-sm font-medium bg-green-100 text-green-800"
           >
@@ -104,11 +104,11 @@
       </div>
 
       <!-- Detected Speakers with Manual Mapping -->
-      <div v-if="recognitionDetectedSpeakers.length > 0" class="mb-4">
+      <div v-if="recognitionRef.detectedSpeakers.value.length > 0" class="mb-4">
         <h4 class="text-sm font-medium text-gray-700 mb-2">検出された話者（クリックでプロフィールを割り当て）</h4>
         <div class="flex flex-wrap gap-2">
           <button
-            v-for="speakerId in recognitionDetectedSpeakers"
+            v-for="speakerId in recognitionRef.detectedSpeakers.value"
             :key="speakerId"
             type="button"
             class="px-3 py-1 rounded text-sm font-medium transition-colors"
@@ -199,7 +199,7 @@
           セッション結果
         </h3>
         <button
-          v-if="!showResults || recognitionUtterances.length > 0"
+          v-if="!showResults || recognitionRef.utterances.value.length > 0"
           type="button"
           class="text-sm text-blue-600 hover:text-blue-800"
           @click="toggleResults"
@@ -219,7 +219,7 @@
 
     <!-- Show Results Button (when collapsed) -->
     <div
-      v-else-if="recognitionUtterances.length > 0"
+      v-else-if="recognitionRef.utterances.value.length > 0"
       class="bg-white rounded-lg shadow p-4 text-center"
     >
       <button
@@ -227,7 +227,7 @@
         class="text-blue-600 hover:text-blue-800 font-medium"
         @click="toggleResults"
       >
-        セッション結果を表示 ({{ recognitionUtterances.length }} 発話)
+        セッション結果を表示 ({{ recognitionRef.utterances.value.length }} 発話)
       </button>
     </div>
 
@@ -268,15 +268,14 @@ const recognitionRef = shallowRef(useRealtimeRecognition({
 }));
 
 // Expose reactive properties for template access
-// These computed properties re-evaluate when recognitionRef changes
+// Note: These are getters that access the current recognitionRef's state
+// For values that change frequently (utterances, speakerMappings), we access them directly
+// to ensure Vue's reactivity system tracks the inner refs properly
 const recognitionStatus = computed(() => recognitionRef.value.status.value);
 const recognitionIsActive = computed(() => recognitionRef.value.isActive.value);
-const recognitionUtterances = computed(() => recognitionRef.value.utterances.value);
 const recognitionInterimText = computed(() => recognitionRef.value.interimText.value);
 const recognitionInterimSpeaker = computed(() => recognitionRef.value.interimSpeaker.value);
 const recognitionError = computed(() => recognitionRef.value.error.value);
-const recognitionSpeakerMappings = computed(() => recognitionRef.value.speakerMappings.value);
-const recognitionDetectedSpeakers = computed(() => recognitionRef.value.detectedSpeakers.value);
 const recognitionTimeoutState = computed(() => recognitionRef.value.timeoutState.value);
 
 // Manual speaker mapping state
@@ -355,7 +354,7 @@ function handleSessionEnded() {
 	recognitionRef.value.disconnect();
 	sessionId.value = null;
 	// Show results after session ends if there are utterances
-	if (recognitionUtterances.value.length > 0) {
+	if (recognitionRef.value.utterances.value.length > 0) {
 		showResults.value = true;
 	}
 }
@@ -439,7 +438,7 @@ const sessionDurationSeconds = computed(() => {
 
 // Utterances with speaker mappings applied (both automatic and manual)
 const mappedUtterances = computed(() => {
-	return recognitionUtterances.value.map((utterance) => {
+	return recognitionRef.value.utterances.value.map((utterance) => {
 		// First check manual mappings
 		const manualMapping = manualSpeakerMappings.value.get(utterance.speakerId);
 		if (manualMapping) {
@@ -450,7 +449,7 @@ const mappedUtterances = computed(() => {
 		}
 
 		// Then check automatic mappings from enrollment
-		const autoMapping = recognitionSpeakerMappings.value.find(
+		const autoMapping = recognitionRef.value.speakerMappings.value.find(
 			(m) => m.speakerId === utterance.speakerId
 		);
 		if (autoMapping) {
@@ -475,7 +474,7 @@ const mappedInterimSpeaker = computed(() => {
 		}
 
 		// Then check automatic mappings from enrollment
-		const autoMapping = recognitionSpeakerMappings.value.find(
+		const autoMapping = recognitionRef.value.speakerMappings.value.find(
 			(m) => m.speakerId === interimSpeakerId
 		);
 		if (autoMapping) {
@@ -534,7 +533,7 @@ function getMappedProfile(speakerId: string): string | null {
 	}
 
 	// Then check automatic mappings from enrollment
-	const autoMapping = recognitionSpeakerMappings.value.find((m) => m.speakerId === speakerId);
+	const autoMapping = recognitionRef.value.speakerMappings.value.find((m) => m.speakerId === speakerId);
 	if (autoMapping) {
 		return autoMapping.profileName;
 	}

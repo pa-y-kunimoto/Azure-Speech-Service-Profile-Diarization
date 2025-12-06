@@ -144,6 +144,11 @@ export class DiarizationClient {
 
 				// Set up event handlers
 				this.transcriber.transcribing = (_, e) => {
+					console.log('[DiarizationClient] transcribing event:', {
+						text: e.result?.text,
+						speakerId: e.result?.speakerId,
+						reason: e.result?.reason,
+					});
 					// Emit speakerDetected for interim results too (important for enrollment)
 					const speakerId = e.result?.speakerId;
 					if (speakerId && !this.speakerMappings.has(speakerId)) {
@@ -153,6 +158,11 @@ export class DiarizationClient {
 				};
 
 				this.transcriber.transcribed = (_, e) => {
+					console.log('[DiarizationClient] transcribed event:', {
+						text: e.result?.text,
+						speakerId: e.result?.speakerId,
+						reason: e.result?.reason,
+					});
 					// Auto-detect new speakers and emit event
 					const speakerId = e.result?.speakerId;
 					if (speakerId && !this.speakerMappings.has(speakerId)) {
@@ -162,6 +172,10 @@ export class DiarizationClient {
 				};
 
 				this.transcriber.canceled = (_, e) => {
+					console.log('[DiarizationClient] canceled event:', {
+						reason: e.reason,
+						errorDetails: e.errorDetails,
+					});
 					this.emit('canceled', e);
 				};
 

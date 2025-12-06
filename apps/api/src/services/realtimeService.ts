@@ -66,6 +66,8 @@ export class RealtimeService {
 
 	// Pending profile registrations - profiles waiting to be matched with Azure speaker IDs
 	private pendingProfiles: ProfileRegistration[] = [];
+	// Profiles that have been enrolled but not yet mapped to a speakerId
+	private unmappedProfiles: ProfileRegistration[] = [];
 	// Detected speakers that haven't been mapped yet
 	private unmappedSpeakers: string[] = [];
 	// Speakers that have been mapped (to avoid re-mapping)
@@ -76,6 +78,8 @@ export class RealtimeService {
 	private currentEnrollmentProfile: ProfileRegistration | null = null;
 	// Speakers detected during current profile enrollment
 	private currentEnrollmentSpeakers: Set<string> = new Set();
+	// Flag to enable auto-mapping of detected speakers to unmapped profiles
+	private autoMappingEnabled = false;
 
 	// Event handlers stored for cleanup
 	private transcribingHandler?: EventCallback;
@@ -97,11 +101,11 @@ export class RealtimeService {
 		// Set up event handlers
 		this.transcribingHandler = (e: unknown) => {
 			const event = e as TranscriptionResult;
+			// During enrollment, always track speakers (even without text)
+			if (this.isEnrolling && event.result?.speakerId) {
+				this.trackEnrollmentSpeaker(event.result.speakerId);
+			}
 			if (event.result?.text) {
-				// During enrollment, track speakers and emit with enrollment flag
-				if (this.isEnrolling && event.result.speakerId) {
-					this.trackEnrollmentSpeaker(event.result.speakerId);
-				}
 				const utterance = this.createUtterance(event, false, this.isEnrolling);
 				this.eventEmitter.emit('transcribing', utterance);
 			}
@@ -109,11 +113,11 @@ export class RealtimeService {
 
 		this.transcribedHandler = (e: unknown) => {
 			const event = e as TranscriptionResult;
+			// During enrollment, always track speakers (even without text)
+			if (this.isEnrolling && event.result?.speakerId) {
+				this.trackEnrollmentSpeaker(event.result.speakerId);
+			}
 			if (event.result?.text) {
-				// During enrollment, track speakers and emit with enrollment flag
-				if (this.isEnrolling && event.result.speakerId) {
-					this.trackEnrollmentSpeaker(event.result.speakerId);
-				}
 				const utterance = this.createUtterance(event, true, this.isEnrolling);
 				this.utterances.push(utterance);
 				this.eventEmitter.emit('transcribed', utterance);
@@ -133,6 +137,10 @@ export class RealtimeService {
 			// Track speaker during enrollment
 			if (this.isEnrolling) {
 				this.trackEnrollmentSpeaker(id);
+			}
+			// Auto-map to unmapped profiles if enabled and speaker not already mapped
+			if (this.autoMappingEnabled && !this.mappedSpeakerIds.has(id)) {
+				this.tryAutoMapSpeaker(id);
 			}
 			this.eventEmitter.emit('speakerDetected', id);
 		};
@@ -303,12 +311,16 @@ export class RealtimeService {
 				console.log(`Profile "${profile.profileName}" sent ${chunkCount} audio chunks`);
 
 				// Wait for Azure to process and detect speaker
-				// Use adaptive wait time: minimum 2 seconds, or at least audio duration
-				const waitTime = Math.max(2000, Math.min(audioDurationMs, 5000));
+				// We wait for either:
+				// 1. A transcribed event (final recognition result) to be received
+				// 2. Or a maximum timeout (audio duration + processing buffer)
+				const maxWaitTime = Math.max(5000, audioDurationMs + 3000);
 				console.log(
-					`Waiting ${waitTime}ms for Azure to process profile "${profile.profileName}"...`
+					`Waiting up to ${maxWaitTime}ms for Azure to process profile "${profile.profileName}"...`
 				);
-				await this.sleep(waitTime);
+
+				// Wait for final transcription or timeout
+				await this.waitForEnrollmentTranscription(maxWaitTime);
 
 				// Map all speakers detected during this profile's audio
 				const detectedSpeakers = Array.from(this.currentEnrollmentSpeakers);
@@ -334,13 +346,9 @@ export class RealtimeService {
 					}
 				} else {
 					console.log(`Profile "${profile.profileName}" - no speakers detected during enrollment`);
-					// Emit a warning event so the client knows this profile wasn't mapped
-					this.eventEmitter.emit('enrollmentWarning', {
-						profileId: profile.profileId,
-						profileName: profile.profileName,
-						message:
-							'プロフィール音声からスピーカーを検出できませんでした。音声が短すぎるか、明瞭でない可能性があります。',
-					});
+					// Add to unmapped profiles for auto-mapping later
+					this.unmappedProfiles.push(profile);
+					console.log(`Profile "${profile.profileName}" added to auto-mapping queue`);
 				}
 
 				// Short pause between profiles
@@ -359,10 +367,19 @@ export class RealtimeService {
 			`Enrollment completed. Mapped ${totalMapped} speaker(s) across ${this.pendingProfiles.length} profile(s)`
 		);
 
+		// Enable auto-mapping if there are unmapped profiles
+		if (this.unmappedProfiles.length > 0) {
+			this.autoMappingEnabled = true;
+			console.log(
+				`Auto-mapping enabled for ${this.unmappedProfiles.length} unmapped profile(s): ${this.unmappedProfiles.map((p) => p.profileName).join(', ')}`
+			);
+		}
+
 		// Emit enrollment complete event
 		this.eventEmitter.emit('enrollmentComplete', {
 			enrolled: this.pendingProfiles.length,
 			mapped: totalMapped,
+			unmappedProfiles: this.unmappedProfiles.map((p) => p.profileName),
 		});
 	}
 
@@ -387,10 +404,81 @@ export class RealtimeService {
 	}
 
 	/**
+	 * Try to auto-map a detected speaker to an unmapped profile
+	 * Called when a new speaker is detected after enrollment
+	 */
+	private tryAutoMapSpeaker(speakerId: string): void {
+		if (this.unmappedProfiles.length === 0) {
+			console.log(`No unmapped profiles available for speaker ${speakerId}`);
+			return;
+		}
+
+		// Get the first unmapped profile (FIFO order)
+		const profile = this.unmappedProfiles.shift();
+		if (!profile) {
+			return;
+		}
+
+		// Map the speaker to this profile
+		this.mapSpeaker(speakerId, profile.profileId, profile.profileName);
+		this.mappedSpeakerIds.add(speakerId);
+
+		console.log(`[Auto-Map] Mapped speaker ${speakerId} to profile "${profile.profileName}"`);
+
+		// Emit speaker mapped event
+		this.eventEmitter.emit('speakerMapped', {
+			speakerId,
+			profileId: profile.profileId,
+			profileName: profile.profileName,
+			autoMapped: true,
+		});
+
+		// Disable auto-mapping if no more unmapped profiles
+		if (this.unmappedProfiles.length === 0) {
+			this.autoMappingEnabled = false;
+			console.log('[Auto-Map] All profiles have been mapped, auto-mapping disabled');
+		}
+	}
+
+	/**
 	 * Helper to sleep for a given duration
 	 */
 	private sleep(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	/**
+	 * Wait for enrollment transcription result or timeout
+	 * Resolves when a 'transcribed' event is received or timeout expires
+	 */
+	private waitForEnrollmentTranscription(maxWaitMs: number): Promise<void> {
+		return new Promise<void>((resolve) => {
+			let resolved = false;
+
+			// Handler for transcribed event
+			const onTranscribed = () => {
+				if (!resolved) {
+					resolved = true;
+					this.eventEmitter.off('transcribed', onTranscribed);
+					console.log('Enrollment transcription received, proceeding with speaker mapping');
+					// Add a small delay to ensure speaker detection has completed
+					setTimeout(resolve, 500);
+				}
+			};
+
+			// Register handler
+			this.eventEmitter.on('transcribed', onTranscribed);
+
+			// Timeout fallback
+			setTimeout(() => {
+				if (!resolved) {
+					resolved = true;
+					this.eventEmitter.off('transcribed', onTranscribed);
+					console.log('Enrollment wait timeout, proceeding with speaker mapping');
+					resolve();
+				}
+			}, maxWaitMs);
+		});
 	}
 
 	/**
@@ -434,10 +522,12 @@ export class RealtimeService {
 		await this.stop();
 		this.utterances = [];
 		this.pendingProfiles = [];
+		this.unmappedProfiles = [];
 		this.unmappedSpeakers = [];
 		this.mappedSpeakerIds.clear();
 		this.currentEnrollmentProfile = null;
 		this.currentEnrollmentSpeakers.clear();
+		this.autoMappingEnabled = false;
 		this.eventEmitter.removeAllListeners();
 	}
 }
