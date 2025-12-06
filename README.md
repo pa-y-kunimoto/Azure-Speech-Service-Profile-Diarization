@@ -251,10 +251,10 @@ flowchart TD
 	class Speech azure
 
 	%% Notes (clickable links may not work in all renderers)
-	click API "https://github.com/pa-y-kunimoto/Azure-Speech-Service-Profile-Diarization/tree/main/apps/api/README.md" "API docs"
-	click Web "https://github.com/pa-y-kunimoto/Azure-Speech-Service-Profile-Diarization/tree/main/apps/web/README.md" "Web docs"
-    click Client "https://github.com/pa-y-kunimoto/Azure-Speech-Service-Profile-Diarization/tree/main/packages/speech-client/README.md" "Speech Client docs"
-    click Core "https://github.com/pa-y-kunimoto/Azure-Speech-Service-Profile-Diarization/tree/main/packages/core/README.md" "Core docs"
+	click API "https://github.com/pa-y-kunimoto/Azure-Speech-Service-Profile-Diarization/tree/main/apps/api/" "API docs"
+	click Web "https://github.com/pa-y-kunimoto/Azure-Speech-Service-Profile-Diarization/tree/main/apps/web/" "Web docs"
+    click Client "https://github.com/pa-y-kunimoto/Azure-Speech-Service-Profile-Diarization/tree/main/packages/speech-client/" "Speech Client docs"
+    click Core "https://github.com/pa-y-kunimoto/Azure-Speech-Service-Profile-Diarization/tree/main/packages/core/" "Core docs"
 ```
 
 ## 📄 ライセンス
