@@ -80,6 +80,8 @@ export interface TimeoutState {
 	isSessionTimeoutEnabled: boolean;
 	/** Whether silence timeout is enabled */
 	isSilenceTimeoutEnabled: boolean;
+	/** Whether session extension is allowed */
+	allowSessionExtend: boolean;
 }
 
 /**
@@ -136,6 +138,7 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		warning: null,
 		isSessionTimeoutEnabled: false,
 		isSilenceTimeoutEnabled: false,
+		allowSessionExtend: false,
 	});
 
 	// WebSocket and MediaRecorder refs
@@ -566,6 +569,14 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 	function handleTranscriptionMessage(message: { utterance: Utterance }): void {
 		const utterance = message.utterance;
 
+		// Auto-dismiss silence warning when speech is detected
+		if (timeoutState.value.warning?.warningType === 'silence') {
+			timeoutState.value = {
+				...timeoutState.value,
+				warning: null,
+			};
+		}
+
 		if (utterance.isFinal) {
 			// Final result - add to utterances list
 			utterances.value = [...utterances.value, utterance];
@@ -640,13 +651,32 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 	function handleTimeoutStatusMessage(message: {
 		sessionTimeoutRemaining: number | null;
 		silenceTimeoutRemaining: number | null;
+		allowSessionExtend?: boolean;
 	}): void {
+		// Update remaining time on the warning if one is displayed
+		let updatedWarning = timeoutState.value.warning;
+		if (updatedWarning) {
+			if (updatedWarning.warningType === 'silence' && message.silenceTimeoutRemaining !== null) {
+				updatedWarning = {
+					...updatedWarning,
+					remainingSeconds: message.silenceTimeoutRemaining,
+				};
+			} else if (updatedWarning.warningType === 'session' && message.sessionTimeoutRemaining !== null) {
+				updatedWarning = {
+					...updatedWarning,
+					remainingSeconds: message.sessionTimeoutRemaining,
+				};
+			}
+		}
+
 		timeoutState.value = {
 			...timeoutState.value,
 			sessionTimeoutRemaining: message.sessionTimeoutRemaining,
 			silenceTimeoutRemaining: message.silenceTimeoutRemaining,
 			isSessionTimeoutEnabled: message.sessionTimeoutRemaining !== null,
 			isSilenceTimeoutEnabled: message.silenceTimeoutRemaining !== null,
+			allowSessionExtend: message.allowSessionExtend ?? true,
+			warning: updatedWarning,
 		};
 	}
 
@@ -690,6 +720,16 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		);
 
 		// Clear warning when extending
+		timeoutState.value = {
+			...timeoutState.value,
+			warning: null,
+		};
+	}
+
+	/**
+	 * Dismiss timeout warning without extending session
+	 */
+	function dismissWarning(): void {
 		timeoutState.value = {
 			...timeoutState.value,
 			warning: null,
@@ -783,5 +823,6 @@ export function useRealtimeRecognition(options: UseRealtimeRecognitionOptions) {
 		mapSpeaker,
 		clearUtterances,
 		extendSession,
+		dismissWarning,
 	};
 }

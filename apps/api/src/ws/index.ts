@@ -28,8 +28,18 @@ const sessions: Map<
 	}
 > = new Map();
 
-// Global timeout configuration (loaded once at startup)
-let globalTimeoutConfig = loadTimeoutConfig();
+// Global timeout configuration (loaded lazily when first session is created)
+let globalTimeoutConfig: ReturnType<typeof loadTimeoutConfig> | null = null;
+
+/**
+ * Get timeout configuration (lazy loading to ensure dotenv is loaded first)
+ */
+function getTimeoutConfig(): ReturnType<typeof loadTimeoutConfig> {
+	if (globalTimeoutConfig === null) {
+		globalTimeoutConfig = loadTimeoutConfig();
+	}
+	return globalTimeoutConfig;
+}
 
 // Client store - maps sessionId to connected WebSocket clients
 const clients: Map<string, Set<WebSocket>> = new Map();
@@ -181,8 +191,9 @@ export function setupWebSocketServer(
 				});
 			});
 
-			// Set up timeout service
-			const timeoutService = new SessionTimeoutService(sessionId, globalTimeoutConfig);
+			// Set up timeout service (lazy load config to ensure dotenv is loaded)
+			const timeoutService = new SessionTimeoutService(sessionId, getTimeoutConfig());
+			const timeoutConfig = getTimeoutConfig();
 
 			// Connect timeout service events
 			timeoutService.on('tick', (status: TimeoutStatus) => {
@@ -190,6 +201,7 @@ export function setupWebSocketServer(
 					type: 'timeout_status',
 					sessionTimeoutRemaining: status.sessionTimeoutRemaining,
 					silenceTimeoutRemaining: status.silenceTimeoutRemaining,
+					allowSessionExtend: timeoutConfig.allowSessionExtend,
 				});
 			});
 

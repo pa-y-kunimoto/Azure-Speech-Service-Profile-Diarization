@@ -25,17 +25,17 @@
         <div class="flex items-center gap-3">
           <!-- Session Timer -->
           <SessionTimer
-            v-if="recognition.isActive.value"
-            :session-timeout-remaining="recognition.timeoutState.value.sessionTimeoutRemaining"
-            :silence-timeout-remaining="recognition.timeoutState.value.silenceTimeoutRemaining"
+            v-if="recognitionIsActive"
+            :session-timeout-remaining="recognitionTimeoutState.sessionTimeoutRemaining"
+            :silence-timeout-remaining="recognitionTimeoutState.silenceTimeoutRemaining"
           />
           <span 
             :class="[
               'px-2 py-1 rounded text-sm font-medium',
-              statusColors[recognition.status.value]
+              statusColors[recognitionStatus]
             ]"
           >
-            {{ statusLabels[recognition.status.value] }}
+            {{ statusLabels[recognitionStatus] }}
           </span>
         </div>
       </div>
@@ -43,10 +43,10 @@
       <!-- Control Buttons -->
       <div class="flex gap-3 mb-4">
         <button
-          v-if="!recognition.isActive.value"
+          v-if="!recognitionIsActive"
           type="button"
           class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-          :disabled="recognition.status.value === 'connecting'"
+          :disabled="recognitionStatus === 'connecting'"
           @click="startRecognition"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,7 +70,7 @@
         <button
           type="button"
           class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-          @click="recognition.clearUtterances"
+          @click="clearUtterances"
         >
           クリア
         </button>
@@ -78,21 +78,21 @@
 
       <!-- Error Message -->
       <div
-        v-if="recognition.error.value"
+        v-if="recognitionError"
         class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm mb-4"
       >
-        <span class="font-medium">エラー:</span> {{ recognition.error.value.message }}
-        <span v-if="recognition.error.value.recoverable" class="text-red-500 ml-2">
+        <span class="font-medium">エラー:</span> {{ recognitionError.message }}
+        <span v-if="recognitionError.recoverable" class="text-red-500 ml-2">
           (リトライ可能)
         </span>
       </div>
 
       <!-- Automatic Speaker Mappings (from enrollment) -->
-      <div v-if="recognition.speakerMappings.value.length > 0" class="mb-4">
+      <div v-if="recognitionSpeakerMappings.length > 0" class="mb-4">
         <h4 class="text-sm font-medium text-gray-700 mb-2">自動マッピング済みプロフィール</h4>
         <div class="flex flex-wrap gap-2">
           <span
-            v-for="mapping in recognition.speakerMappings.value"
+            v-for="mapping in recognitionSpeakerMappings"
             :key="mapping.speakerId"
             class="px-3 py-1 rounded text-sm font-medium bg-green-100 text-green-800"
           >
@@ -104,11 +104,11 @@
       </div>
 
       <!-- Detected Speakers with Manual Mapping -->
-      <div v-if="recognition.detectedSpeakers.value.length > 0" class="mb-4">
+      <div v-if="recognitionDetectedSpeakers.length > 0" class="mb-4">
         <h4 class="text-sm font-medium text-gray-700 mb-2">検出された話者（クリックでプロフィールを割り当て）</h4>
         <div class="flex flex-wrap gap-2">
           <button
-            v-for="speakerId in recognition.detectedSpeakers.value"
+            v-for="speakerId in recognitionDetectedSpeakers"
             :key="speakerId"
             type="button"
             class="px-3 py-1 rounded text-sm font-medium transition-colors"
@@ -174,9 +174,9 @@
       </h3>
       <TranscriptView
         :utterances="mappedUtterances"
-        :interim-text="recognition.interimText.value"
+        :interim-text="recognitionInterimText"
         :interim-speaker="mappedInterimSpeaker"
-        :is-active="recognition.isActive.value"
+        :is-active="recognitionIsActive"
         @speaker-click="handleSpeakerClick"
       />
     </div>
@@ -199,7 +199,7 @@
           セッション結果
         </h3>
         <button
-          v-if="!showResults || recognition.utterances.value.length > 0"
+          v-if="!showResults || recognitionUtterances.length > 0"
           type="button"
           class="text-sm text-blue-600 hover:text-blue-800"
           @click="toggleResults"
@@ -219,7 +219,7 @@
 
     <!-- Show Results Button (when collapsed) -->
     <div
-      v-else-if="recognition.utterances.value.length > 0"
+      v-else-if="recognitionUtterances.length > 0"
       class="bg-white rounded-lg shadow p-4 text-center"
     >
       <button
@@ -227,13 +227,14 @@
         class="text-blue-600 hover:text-blue-800 font-medium"
         @click="toggleResults"
       >
-        セッション結果を表示 ({{ recognition.utterances.value.length }} 発話)
+        セッション結果を表示 ({{ recognitionUtterances.length }} 発話)
       </button>
     </div>
 
     <!-- Timeout Warning Modal -->
     <TimeoutWarningModal
-      :warning="recognition.timeoutState.value.warning"
+      :warning="recognitionTimeoutState.warning"
+      :allow-session-extend="recognitionTimeoutState.allowSessionExtend"
       @extend="handleExtendSession"
       @dismiss="handleDismissWarning"
     />
@@ -242,20 +243,41 @@
 
 <script setup lang="ts">
 import type { SpeakerMapping } from '@speaker-diarization/core';
-import { computed, onUnmounted, ref } from 'vue';
-import { useRealtimeRecognition } from '~/composables/useRealtimeRecognition';
+import { computed, onUnmounted, ref, shallowRef, type Ref } from 'vue';
+import {
+	useRealtimeRecognition,
+	type RecognitionStatus,
+	type RecognitionError,
+	type Utterance,
+	type SpeakerMapping as RecognitionSpeakerMapping,
+	type TimeoutState,
+} from '~/composables/useRealtimeRecognition';
 import { useVoiceProfile } from '~/composables/useVoiceProfile';
 
 // Session state
 const sessionId = ref<string | null>(null);
+const activeSessionId = ref<string>('placeholder');
 
 // Voice profiles for manual mapping
 const { profiles: availableProfiles } = useVoiceProfile();
 
-// Initialize recognition composable when session starts
-let recognition = useRealtimeRecognition({
-	sessionId: 'placeholder',
-});
+// Initialize recognition composable - uses shallowRef to track object changes
+// The composable's internal refs remain reactive
+const recognitionRef = shallowRef(useRealtimeRecognition({
+	sessionId: activeSessionId.value,
+}));
+
+// Expose reactive properties for template access
+// These computed properties re-evaluate when recognitionRef changes
+const recognitionStatus = computed(() => recognitionRef.value.status.value);
+const recognitionIsActive = computed(() => recognitionRef.value.isActive.value);
+const recognitionUtterances = computed(() => recognitionRef.value.utterances.value);
+const recognitionInterimText = computed(() => recognitionRef.value.interimText.value);
+const recognitionInterimSpeaker = computed(() => recognitionRef.value.interimSpeaker.value);
+const recognitionError = computed(() => recognitionRef.value.error.value);
+const recognitionSpeakerMappings = computed(() => recognitionRef.value.speakerMappings.value);
+const recognitionDetectedSpeakers = computed(() => recognitionRef.value.detectedSpeakers.value);
+const recognitionTimeoutState = computed(() => recognitionRef.value.timeoutState.value);
 
 // Manual speaker mapping state
 const showMappingDialog = ref(false);
@@ -303,13 +325,15 @@ const enrollmentProfiles = ref<EnrollmentProfile[]>([]);
  */
 function handleSessionStarted(id: string, profiles: EnrollmentProfile[]) {
 	sessionId.value = id;
+	activeSessionId.value = id;
 	sessionStartTime.value = Date.now();
 	showResults.value = false;
 	selectedSpeaker.value = null;
 	enrollmentProfiles.value = profiles;
 
 	// Reinitialize recognition with correct session ID
-	recognition = useRealtimeRecognition({
+	// Store in ref to maintain reactivity
+	recognitionRef.value = useRealtimeRecognition({
 		sessionId: id,
 		onError: (error) => {
 			console.error('Recognition error:', error);
@@ -328,10 +352,10 @@ function handleSessionStarted(id: string, profiles: EnrollmentProfile[]) {
  * Handle session ended event from SessionControl
  */
 function handleSessionEnded() {
-	recognition.disconnect();
+	recognitionRef.value.disconnect();
 	sessionId.value = null;
 	// Show results after session ends if there are utterances
-	if (recognition.utterances.value.length > 0) {
+	if (recognitionUtterances.value.length > 0) {
 		showResults.value = true;
 	}
 }
@@ -346,14 +370,14 @@ async function startRecognition() {
 		// Enrollment also starts transcription, so we don't need to call start() separately
 		if (enrollmentProfiles.value.length > 0) {
 			console.log('Enrolling profiles before starting recognition...');
-			await recognition.enrollProfiles(enrollmentProfiles.value);
+			await recognitionRef.value.enrollProfiles(enrollmentProfiles.value);
 			// Clear enrollment profiles after successful enrollment
 			enrollmentProfiles.value = [];
 			// Start microphone capture only (transcription is already started by enroll)
-			await recognition.startMicrophoneCapture();
+			await recognitionRef.value.startMicrophoneCapture();
 		} else {
 			// No profiles to enroll, start normally
-			await recognition.start();
+			await recognitionRef.value.start();
 		}
 	} catch (error) {
 		console.error('Failed to start recognition:', error);
@@ -365,7 +389,7 @@ async function startRecognition() {
  */
 async function stopRecognition() {
 	try {
-		await recognition.stop();
+		await recognitionRef.value.stop();
 	} catch (error) {
 		console.error('Failed to stop recognition:', error);
 	}
@@ -375,15 +399,21 @@ async function stopRecognition() {
  * Extend session timeout
  */
 function handleExtendSession() {
-	recognition.extendSession();
+	recognitionRef.value.extendSession();
 }
 
 /**
  * Dismiss timeout warning
  */
 function handleDismissWarning() {
-	// Warning will be cleared automatically when timeout state updates
-	// or when extendSession is called
+	recognitionRef.value.dismissWarning();
+}
+
+/**
+ * Clear all utterances
+ */
+function clearUtterances() {
+	recognitionRef.value.clearUtterances();
 }
 
 /**
@@ -409,7 +439,7 @@ const sessionDurationSeconds = computed(() => {
 
 // Utterances with speaker mappings applied (both automatic and manual)
 const mappedUtterances = computed(() => {
-	return recognition.utterances.value.map((utterance) => {
+	return recognitionUtterances.value.map((utterance) => {
 		// First check manual mappings
 		const manualMapping = manualSpeakerMappings.value.get(utterance.speakerId);
 		if (manualMapping) {
@@ -420,7 +450,7 @@ const mappedUtterances = computed(() => {
 		}
 
 		// Then check automatic mappings from enrollment
-		const autoMapping = recognition.speakerMappings.value.find(
+		const autoMapping = recognitionSpeakerMappings.value.find(
 			(m) => m.speakerId === utterance.speakerId
 		);
 		if (autoMapping) {
@@ -436,7 +466,7 @@ const mappedUtterances = computed(() => {
 
 // Interim speaker with mapping applied (both automatic and manual)
 const mappedInterimSpeaker = computed(() => {
-	const interimSpeakerId = recognition.interimSpeaker.value;
+	const interimSpeakerId = recognitionInterimSpeaker.value;
 	if (interimSpeakerId) {
 		// First check manual mappings
 		const manualMapping = manualSpeakerMappings.value.get(interimSpeakerId);
@@ -445,14 +475,14 @@ const mappedInterimSpeaker = computed(() => {
 		}
 
 		// Then check automatic mappings from enrollment
-		const autoMapping = recognition.speakerMappings.value.find(
+		const autoMapping = recognitionSpeakerMappings.value.find(
 			(m) => m.speakerId === interimSpeakerId
 		);
 		if (autoMapping) {
 			return autoMapping.profileName;
 		}
 	}
-	return recognition.interimSpeaker.value;
+	return recognitionInterimSpeaker.value;
 });
 
 // Transform utterances to match SpeakerTimeline's expected type
@@ -504,7 +534,7 @@ function getMappedProfile(speakerId: string): string | null {
 	}
 
 	// Then check automatic mappings from enrollment
-	const autoMapping = recognition.speakerMappings.value.find((m) => m.speakerId === speakerId);
+	const autoMapping = recognitionSpeakerMappings.value.find((m) => m.speakerId === speakerId);
 	if (autoMapping) {
 		return autoMapping.profileName;
 	}
@@ -551,13 +581,13 @@ function confirmSpeakerMapping() {
 	});
 
 	// Call the recognition mapSpeaker function to update the backend
-	recognition.mapSpeaker(mappingDialogSpeakerId.value, profile.id, profile.name);
+	recognitionRef.value.mapSpeaker(mappingDialogSpeakerId.value, profile.id, profile.name);
 
 	closeMappingDialog();
 }
 
 // Cleanup on unmount
 onUnmounted(() => {
-	recognition.disconnect();
+	recognitionRef.value.disconnect();
 });
 </script>

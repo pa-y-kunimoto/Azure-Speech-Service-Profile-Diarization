@@ -64,6 +64,8 @@ export interface TimeoutConfig {
 	silenceTimeoutMinutes: number | null;
 	/** Warning before timeout in seconds (fixed at 60) */
 	warningBeforeSeconds: number;
+	/** Whether session extension is allowed */
+	allowSessionExtend: boolean;
 }
 
 /**
@@ -71,8 +73,23 @@ export interface TimeoutConfig {
  *
  * @returns TimeoutConfig with validated values
  */
+/**
+ * Parse boolean from environment variable string.
+ *
+ * @param value - The environment variable value
+ * @param defaultValue - Default value if not specified
+ * @returns boolean
+ */
+export function parseBooleanEnv(value: string | undefined, defaultValue: boolean): boolean {
+	if (value === undefined || value === '') {
+		return defaultValue;
+	}
+	const lowered = value.toLowerCase();
+	return lowered === 'true' || lowered === '1' || lowered === 'yes';
+}
+
 export function loadTimeoutConfig(): TimeoutConfig {
-	return {
+	const config = {
 		sessionTimeoutMinutes: parseTimeoutMinutes(
 			process.env.SESSION_TIMEOUT_MINUTES,
 			DEFAULT_SESSION_TIMEOUT_MINUTES
@@ -82,5 +99,15 @@ export function loadTimeoutConfig(): TimeoutConfig {
 			DEFAULT_SILENCE_TIMEOUT_MINUTES
 		),
 		warningBeforeSeconds: WARNING_BEFORE_SECONDS,
+		allowSessionExtend: parseBooleanEnv(process.env.ALLOW_SESSION_EXTEND, false),
 	};
+
+	console.log('[Timeout Config] Loaded configuration:', {
+		SESSION_TIMEOUT_MINUTES: process.env.SESSION_TIMEOUT_MINUTES ?? '(not set)',
+		SILENCE_TIMEOUT_MINUTES: process.env.SILENCE_TIMEOUT_MINUTES ?? '(not set)',
+		ALLOW_SESSION_EXTEND: process.env.ALLOW_SESSION_EXTEND ?? '(not set)',
+		resolved: config,
+	});
+
+	return config;
 }

@@ -67,8 +67,12 @@ NODE_ENV=development
 # SILENCE_TIMEOUT_MINUTES: 無音検出タイムアウト（分）
 #   デフォルト: 5分
 #   範囲: 1-120分、0 = 無効
+# ALLOW_SESSION_EXTEND: セッション延長を許可するか
+#   デフォルト: false
+#   true にすると延長ボタンが表示され、セッションを延長できます
 SESSION_TIMEOUT_MINUTES=15
 SILENCE_TIMEOUT_MINUTES=5
+ALLOW_SESSION_EXTEND=false
 ```
 
 ## 💻 開発

@@ -16,6 +16,8 @@ services:
       # 0 = disabled/unlimited, 1-120 = minutes before timeout
       - SESSION_TIMEOUT_MINUTES=${SESSION_TIMEOUT_MINUTES:-15}
       - SILENCE_TIMEOUT_MINUTES=${SILENCE_TIMEOUT_MINUTES:-5}
+      # Allow users to extend session timeout (true/false)
+      - ALLOW_SESSION_EXTEND=${ALLOW_SESSION_EXTEND:-false}
     ports:
       - "${API_PORT:-3001}:3001"
     networks:

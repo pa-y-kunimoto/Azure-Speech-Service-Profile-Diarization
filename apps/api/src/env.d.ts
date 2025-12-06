@@ -29,6 +29,9 @@ declare global {
 
       /** Silence timeout in minutes (0 = disabled, default: 5) */
       SILENCE_TIMEOUT_MINUTES?: string;
+
+      /** Allow session extension (true | false, default: false) */
+      ALLOW_SESSION_EXTEND?: "true" | "false";
     }
   }
 }

@@ -17,6 +17,8 @@ export interface SessionTimeoutConfig {
 	silenceTimeoutMinutes: number | null;
 	/** Warning before timeout in seconds */
 	warningBeforeSeconds: number;
+	/** Whether session extension is allowed */
+	allowSessionExtend: boolean;
 }
 
 /**
@@ -156,10 +158,14 @@ export class SessionTimeoutService extends EventEmitter {
 	/**
 	 * Extend session timeout
 	 *
-	 * @returns true if extended, false if session timeout is unlimited
+	 * @returns true if extended, false if session timeout is unlimited or extend is disabled
 	 */
 	extend(): boolean {
 		if (this.config.sessionTimeoutMinutes === null) {
+			return false;
+		}
+
+		if (!this.config.allowSessionExtend) {
 			return false;
 		}
 

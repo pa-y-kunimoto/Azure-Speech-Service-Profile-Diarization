@@ -22,10 +22,11 @@ const mockStatus = ref<string>('idle');
 const mockSessionId = ref<string | null>(null);
 const mockSpeakerMappings = ref<
 	Array<{
-		speakerId: string;
-		profileId: string;
-		profileName: string;
-		isRegistered: boolean;
+		voiceProfileId: string;
+		displayName: string;
+		azureSpeakerId: string | null;
+		status: string;
+		sessionId: string;
 	}>
 >([]);
 const mockError = ref<Error | null>(null);
@@ -254,8 +255,8 @@ describe('SessionControl', () => {
 			mockStatus.value = 'active';
 			mockSessionId.value = 'session-123';
 			mockSpeakerMappings.value = [
-				{ speakerId: 'Guest-1', profileId: 'p1', profileName: '田中さん', isRegistered: true },
-				{ speakerId: 'Guest-2', profileId: 'p2', profileName: '佐藤さん', isRegistered: true },
+				{ voiceProfileId: 'p1', displayName: '田中さん', azureSpeakerId: 'Guest-1', status: 'completed', sessionId: 'session-123' },
+				{ voiceProfileId: 'p2', displayName: '佐藤さん', azureSpeakerId: 'Guest-2', status: 'completed', sessionId: 'session-123' },
 			];
 		});
 

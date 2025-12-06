@@ -69,6 +69,7 @@ describe('TimeoutWarningModal', () => {
 						remainingSeconds: 60,
 						message: 'セッションがあと1分で終了します。延長しますか？',
 					},
+					allowSessionExtend: true,
 				},
 			});
 
@@ -84,6 +85,7 @@ describe('TimeoutWarningModal', () => {
 						remainingSeconds: 60,
 						message: 'セッションがあと1分で終了します。延長しますか？',
 					},
+					allowSessionExtend: true,
 				},
 			});
 

@@ -17,9 +17,13 @@ interface TimeoutWarning {
 interface Props {
 	/** The warning to display, or null if no warning */
 	warning: TimeoutWarning | null;
+	/** Whether session extension is allowed */
+	allowSessionExtend?: boolean;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+	allowSessionExtend: false,
+});
 
 const emit = defineEmits<{
 	/** Emitted when user clicks extend button */
@@ -32,7 +36,7 @@ const emit = defineEmits<{
  * Whether to show the extend button
  */
 const showExtendButton = computed(() => {
-	return props.warning?.warningType === 'session';
+	return props.warning?.warningType === 'session' && props.allowSessionExtend;
 });
 
 /**

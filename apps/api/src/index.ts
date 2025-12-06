@@ -74,6 +74,7 @@ httpServer.listen(PORT, () => {
 	console.log(`🚀 API server running on http://localhost:${PORT}`);
 	console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
 	console.log(`🔌 WebSocket: ws://localhost:${PORT}/ws/session/{sessionId}`);
+	console.log(`⏱️  Timeout config: SESSION=${process.env.SESSION_TIMEOUT_MINUTES ?? '15(default)'}min, SILENCE=${process.env.SILENCE_TIMEOUT_MINUTES ?? '5(default)'}min`);
 	logMockModeStatus();
 });
 

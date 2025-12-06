@@ -27,7 +27,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: 15,
 				silenceTimeoutMinutes: 5,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 			expect(service).toBeDefined();
@@ -37,7 +37,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: null,
 				silenceTimeoutMinutes: 5,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 			expect(service).toBeDefined();
@@ -47,7 +47,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: 15,
 				silenceTimeoutMinutes: null,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 			expect(service).toBeDefined();
@@ -59,7 +59,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: 15,
 				silenceTimeoutMinutes: 5,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 			service.start();
@@ -75,7 +75,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: null,
 				silenceTimeoutMinutes: 5,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 			service.start();
@@ -88,7 +88,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: 15,
 				silenceTimeoutMinutes: null,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 			service.start();
@@ -117,7 +117,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: null,
 				silenceTimeoutMinutes: null,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 			service.start();
@@ -133,7 +133,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: 2, // 2 minutes
 				silenceTimeoutMinutes: null,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 
@@ -157,7 +157,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: 2,
 				silenceTimeoutMinutes: null,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 
@@ -201,7 +201,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: null,
 				silenceTimeoutMinutes: null,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 
@@ -222,7 +222,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: 2,
 				silenceTimeoutMinutes: null,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: true,
 			};
 			service = new SessionTimeoutService('test-session', config);
 
@@ -248,7 +248,21 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: null,
 				silenceTimeoutMinutes: 5,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: true,
+			};
+			service = new SessionTimeoutService('test-session', config);
+
+			service.start();
+
+			const result = service.extend();
+			expect(result).toBe(false);
+		});
+
+		it('should return false when allowSessionExtend is false', () => {
+			const config: SessionTimeoutConfig = {
+				sessionTimeoutMinutes: 2,
+				silenceTimeoutMinutes: null,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 
@@ -262,7 +276,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: 2,
 				silenceTimeoutMinutes: null,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: true,
 			};
 			service = new SessionTimeoutService('test-session', config);
 
@@ -289,7 +303,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: null,
 				silenceTimeoutMinutes: 2,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 
@@ -361,7 +375,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: null,
 				silenceTimeoutMinutes: 2,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 
@@ -386,7 +400,7 @@ describe('SessionTimeoutService', () => {
 			const config: SessionTimeoutConfig = {
 				sessionTimeoutMinutes: 15,
 				silenceTimeoutMinutes: null,
-				warningBeforeSeconds: 60,
+				warningBeforeSeconds: 60, allowSessionExtend: false,
 			};
 			service = new SessionTimeoutService('test-session', config);
 
