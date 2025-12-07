@@ -31,6 +31,9 @@ Azure Speech Service の話者分離（Diarization）機能を使用して、事
 - npm 10.x 以上
 - Azure Speech Service リソース（APIキーとエンドポイント）
 
+> Note: This project now targets Nuxt 4 which requires Node.js >= 22.12.0.
+> If you use Volta, ensure `volta.node` is set to `22.12.0` or later. Update CI and Dockerfiles to use Node 22.12.0+ as well.
+
 ### インストール
 
 ```bash

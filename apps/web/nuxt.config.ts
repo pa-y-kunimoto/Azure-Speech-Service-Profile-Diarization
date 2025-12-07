@@ -4,7 +4,7 @@ import { defineNuxtConfig } from 'nuxt/config';
 export default defineNuxtConfig({
 	devtools: { enabled: true },
 
-	server: {
+	devServer: {
 		port: process.env.WEB_PORT ? Number.parseInt(process.env.WEB_PORT) : 3002,
 	},
 
