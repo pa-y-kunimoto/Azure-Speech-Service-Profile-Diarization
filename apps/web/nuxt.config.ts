@@ -2,7 +2,6 @@ import { defineNuxtConfig } from 'nuxt/config';
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-	compatibilityDate: '2024-12-01',
 	devtools: { enabled: true },
 
 	devServer: {
@@ -13,9 +12,7 @@ export default defineNuxtConfig({
 
 	vite: {
 		css: {
-			postcss: {
-				plugins: [require('tailwindcss'), require('autoprefixer')],
-			},
+			postcss: {},
 		},
 	},
 
